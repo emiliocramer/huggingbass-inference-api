@@ -2,7 +2,7 @@ import os
 from pymongo import MongoClient
 
 # Connect to MongoDB
-MONGO_URI = os.environ('MONGO_URI')
+MONGO_URI = os.environ.get('MONGO_URI')
 client = MongoClient(MONGO_URI)
 
 # Get the database and collection
