@@ -1,11 +1,9 @@
 import os
 import requests
 import base64
-import subprocess
-import sys
-from flask import Blueprint, request
 
-from spotdl import __main__ as spotdl
+from flask import Blueprint, request
+from spotdl import Spotdl
 
 from db import reference_artists_collection
 
@@ -102,7 +100,10 @@ def get_access_token():
 
 def download_mp3(track_url):
     try:
-        return subprocess.check_call([sys.executable, spotdl.__file__, track_url])
+        obj = Spotdl(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET, no_cache=True)
+        song_objs = obj.search([track_url])
+        print(song_objs)
+        obj.download_songs(song_objs)
 
     except Exception as e:
         return f'Error downloading MP3 file: {str(e)}', 500
