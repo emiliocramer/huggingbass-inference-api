@@ -7,4 +7,4 @@ app = Flask(__name__)
 app.register_blueprint(extraction_blueprint)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=3002)
+    app.run()
