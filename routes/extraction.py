@@ -17,6 +17,7 @@ def get_top_song():
     artist_name = request.args.get('artist_name')
     if not artist_name:
         return 'Please provide an artist name', 400
+
     headers = {
         'Authorization': f'Bearer {SPOTIFY_API_TOKEN}'
     }
@@ -61,17 +62,15 @@ def get_top_song():
     if not top_tracks_data['tracks']:
         return f'No top tracks found for the artist "{artist_name}"', 404
 
-    top_track = top_tracks_data['tracks'][0]
-    print(top_track)
-    # audio_preview = get_audio_preview(artist_name, top_track, SPOTIFY_API_TOKEN)
-    # if isinstance(audio_preview, tuple):
-    #     return audio_preview
+    top_track = next((track for track in top_tracks_data['tracks'] if track['preview_url']), None)
+    if top_track is None:
+        return f'No top track found with preview URL for the artist "{artist_name}"', 404
 
     return {
         'artist_name': artist_name,
         'top_track_name': top_track['name'],
         'top_track_url': top_track['external_urls']['spotify'],
-        'top_track_mp3': ""
+        'top_track_mp3': top_track['preview_url'],
     }
 
 
