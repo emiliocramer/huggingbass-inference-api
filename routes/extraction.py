@@ -6,6 +6,10 @@ import shutil
 import tempfile
 from flask import Blueprint, request
 
+from spotdl import __main__ as spotdl
+from spotdl.search.songObj import SongObj
+from pytube import YouTube
+
 from db import reference_artists_collection
 
 extraction_blueprint = Blueprint('extraction', __name__)
@@ -67,12 +71,12 @@ def get_top_song():
 
     top_track = top_tracks_data['tracks'][0]
 
-    # top_track_mp3 = download_mp3(top_track['external_urls']['spotify'])
+    top_track_mp3 = download_mp3(top_track['external_urls']['spotify'])
     return {
         'artist_name': artist_name,
         'top_track_name': top_track['name'],
         'top_track_url': top_track['external_urls']['spotify'],
-        # 'top_track_mp3': top_track_mp3,
+        'top_track_mp3': top_track_mp3,
     }
 
 
@@ -101,26 +105,12 @@ def get_access_token():
 
 def download_mp3(track_url):
     try:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            cmd = f"spotify-dl '{track_url}' --output-directory '{temp_dir}'"
-            subprocess.run(cmd, shell=True, check=True)
+        song = SongObj.from_url(track_url)
+        url = song.get_youtube_link()
+        yt = YouTube(url)
+        yts = yt.streams.get_audio_only()
+        fname = yts.download()
+        return fname
 
-            mp3_files = [f for f in os.listdir(temp_dir) if f.endswith('.mp3')]
-            if not mp3_files:
-                return 'No MP3 file found', 500
-
-            mp3_file = mp3_files[0]
-            mp3_path = os.path.join(temp_dir, mp3_file)
-
-            output_dir = os.path.join(os.getcwd(), 'downloads')
-            os.makedirs(output_dir, exist_ok=True)
-            output_path = shutil.move(mp3_path, output_dir)
-
-            return {
-                'mp3_file': output_path
-            }, 200
-
-    except subprocess.CalledProcessError as e:
-        return f'Error downloading MP3 file: {e.output.decode()}', 500
     except Exception as e:
         return f'Error downloading MP3 file: {str(e)}', 500
