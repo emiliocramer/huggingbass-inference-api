@@ -1,6 +1,8 @@
 import os
 import requests
 import base64
+import yt_dlp
+
 
 from flask import Blueprint, request
 from spotdl import Spotdl
@@ -100,9 +102,31 @@ def get_access_token():
 
 def download_mp3(track_url):
     try:
-        obj = Spotdl(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET, no_cache=True)
-        song_objs = obj.search([track_url])
-        return obj.download_songs(song_objs)
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'outtmpl': '%(title)s.%(ext)s',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(track_url, download=False)
+            if 'entries' in info:
+                video_url = info['entries'][0]['webpage_url']
+            else:
+                video_url = info.get('webpage_url')
+
+            if video_url:
+                output_dir = os.path.join(os.getcwd(), 'downloads')
+                os.makedirs(output_dir, exist_ok=True)
+                ydl.params['outtmpl'] = os.path.join(output_dir, '%(title)s.%(ext)s')
+                ydl.download([video_url])
+                return 'MP3 file downloaded successfully', 200
+            else:
+                return 'Failed to find video URL', 500
 
     except Exception as e:
         return f'Error downloading MP3 file: {str(e)}', 500
