@@ -4,11 +4,18 @@ import base64
 
 from flask import Blueprint, request
 from db import reference_artists_collection
+from google.cloud import storage
 
 extraction_blueprint = Blueprint('extraction', __name__)
 SPOTIFY_CLIENT_ID = os.environ.get('SPOTIFY_CLIENT_ID')
 SPOTIFY_CLIENT_SECRET = os.environ.get('SPOTIFY_CLIENT_SECRET')
 SPOTIFY_API_BASE_URL = 'https://api.spotify.com/v1'
+
+key_path = os.environ.get('GOOGLE_CLOUD_KEY_JSON')
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = key_path
+client = storage.Client()
+bucket_name = 'opus-storage-bucket'
+bucket = client.bucket(bucket_name)
 
 
 @extraction_blueprint.route('/top-song', methods=['GET'])
@@ -66,11 +73,17 @@ def get_top_song():
     if top_track is None:
         return f'No top track found with preview URL for the artist "{artist_name}"', 404
 
+    preview_url = top_track['preview_url']
+    preview_response = requests.get(preview_url)
+
+    blob = bucket.blob(f"{artist_name}/{top_track['name']}.mp3")
+    blob.upload_from_string(preview_response.content)
+
     return {
         'artist_name': artist_name,
         'top_track_name': top_track['name'],
         'top_track_url': top_track['external_urls']['spotify'],
-        'top_track_mp3': top_track['preview_url'],
+        'top_track_mp3': blob.public_url,
     }
 
 

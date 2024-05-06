@@ -13,6 +13,7 @@ dnspython==2.6.1
 exceptiongroup==1.2.1
 fastapi==0.103.2
 Flask==3.0.3
+google==3.0.0
 gunicorn==22.0.0
 h11==0.14.0
 idna==3.7
