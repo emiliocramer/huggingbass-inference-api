@@ -1,6 +1,7 @@
 import os
 import requests
 import base64
+import json
 
 from flask import Blueprint, request
 from db import reference_artists_collection
@@ -11,8 +12,9 @@ SPOTIFY_CLIENT_ID = os.environ.get('SPOTIFY_CLIENT_ID')
 SPOTIFY_CLIENT_SECRET = os.environ.get('SPOTIFY_CLIENT_SECRET')
 SPOTIFY_API_BASE_URL = 'https://api.spotify.com/v1'
 
-key_path = os.environ.get('GOOGLE_CLOUD_KEY_JSON')
-client = storage.Client.from_service_account_json(key_path)
+key_json = os.environ.get('GOOGLE_CLOUD_KEY_JSON')
+key_info = json.loads(key_json)
+client = storage.Client.from_service_account_info(key_info)
 bucket_name = 'opus-storage-bucket'
 bucket = client.bucket(bucket_name)
 
