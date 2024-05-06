@@ -67,6 +67,7 @@ def get_top_song():
     top_track = top_tracks_data['tracks'][0]
 
     top_track_mp3 = download_mp3(top_track['external_urls']['spotify'])
+    print(top_track_mp3)
     return {
         'artist_name': artist_name,
         'top_track_name': top_track['name'],
@@ -102,8 +103,7 @@ def download_mp3(track_url):
     try:
         obj = Spotdl(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET, no_cache=True)
         song_objs = obj.search([track_url])
-        print(song_objs)
-        obj.download_songs(song_objs)
+        return obj.download_songs(song_objs)
 
     except Exception as e:
         return f'Error downloading MP3 file: {str(e)}', 500
