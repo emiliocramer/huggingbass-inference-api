@@ -67,7 +67,6 @@ def get_top_song():
     top_track = top_tracks_data['tracks'][0]
 
     top_track_mp3 = download_mp3(top_track['external_urls']['spotify'])
-    print(top_track_mp3)
     return {
         'artist_name': artist_name,
         'top_track_name': top_track['name'],
