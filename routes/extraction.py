@@ -2,13 +2,10 @@ import os
 import requests
 import base64
 import subprocess
-import shutil
-import tempfile
+import sys
 from flask import Blueprint, request
 
 from spotdl import __main__ as spotdl
-from spotdl.search.songObj import SongObj
-from pytube import YouTube
 
 from db import reference_artists_collection
 
@@ -105,12 +102,7 @@ def get_access_token():
 
 def download_mp3(track_url):
     try:
-        song = SongObj.from_url(track_url)
-        url = song.get_youtube_link()
-        yt = YouTube(url)
-        yts = yt.streams.get_audio_only()
-        fname = yts.download()
-        return fname
+        return subprocess.check_call([sys.executable, spotdl.__file__, track_url])
 
     except Exception as e:
         return f'Error downloading MP3 file: {str(e)}', 500
