@@ -1,7 +1,12 @@
 import os
 import requests
 import base64
+import subprocess
+import shutil
+import tempfile
 from flask import Blueprint, request
+
+from db import reference_artists_collection
 
 extraction_blueprint = Blueprint('extraction', __name__)
 SPOTIFY_CLIENT_ID = os.environ.get('SPOTIFY_CLIENT_ID')
@@ -42,6 +47,12 @@ def get_top_song():
 
     artist_id = search_data['artists']['items'][0]['id']
 
+    if reference_artists_collection.find_one({'spotifyArtistId': artist_id}) is None:
+        reference_artists_collection.insert_one({
+            'spotifyArtistId': artist_id,
+            'artistName': artist_name
+        })
+
     top_tracks_response = requests.get(
         f'{SPOTIFY_API_BASE_URL}/artists/{artist_id}/top-tracks',
         headers=headers,
@@ -55,10 +66,13 @@ def get_top_song():
         return f'No top tracks found for the artist "{artist_name}"', 404
 
     top_track = top_tracks_data['tracks'][0]
+
+    # top_track_mp3 = download_mp3(top_track['external_urls']['spotify'])
     return {
         'artist_name': artist_name,
         'top_track_name': top_track['name'],
-        'top_track_url': top_track['external_urls']['spotify']
+        'top_track_url': top_track['external_urls']['spotify'],
+        # 'top_track_mp3': top_track_mp3,
     }
 
 
@@ -83,3 +97,30 @@ def get_access_token():
     token_data = token_response.json()
     access_token = token_data["access_token"]
     return access_token
+
+
+def download_mp3(track_url):
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cmd = f"spotify-dl '{track_url}' --output-directory '{temp_dir}'"
+            subprocess.run(cmd, shell=True, check=True)
+
+            mp3_files = [f for f in os.listdir(temp_dir) if f.endswith('.mp3')]
+            if not mp3_files:
+                return 'No MP3 file found', 500
+
+            mp3_file = mp3_files[0]
+            mp3_path = os.path.join(temp_dir, mp3_file)
+
+            output_dir = os.path.join(os.getcwd(), 'downloads')
+            os.makedirs(output_dir, exist_ok=True)
+            output_path = shutil.move(mp3_path, output_dir)
+
+            return {
+                'mp3_file': output_path
+            }, 200
+
+    except subprocess.CalledProcessError as e:
+        return f'Error downloading MP3 file: {e.output.decode()}', 500
+    except Exception as e:
+        return f'Error downloading MP3 file: {str(e)}', 500

@@ -1,0 +1,2 @@
+[console_scripts]
+spotify_dl = spotify_dl.spotify_dl:spotify_dl

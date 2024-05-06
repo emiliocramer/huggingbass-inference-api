@@ -8,3 +8,4 @@ client = MongoClient(MONGO_URI)
 # Get the database and collection
 db = client.sourcefuldb
 songs_collection = db.songs
+reference_artists_collection = db.referenceartists
