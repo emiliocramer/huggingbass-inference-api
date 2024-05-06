@@ -1,12 +1,8 @@
 import os
 import requests
 import base64
-import yt_dlp
-
 
 from flask import Blueprint, request
-from spotdl import Spotdl
-
 from db import reference_artists_collection
 
 extraction_blueprint = Blueprint('extraction', __name__)
@@ -21,7 +17,6 @@ def get_top_song():
     artist_name = request.args.get('artist_name')
     if not artist_name:
         return 'Please provide an artist name', 400
-
     headers = {
         'Authorization': f'Bearer {SPOTIFY_API_TOKEN}'
     }
@@ -67,13 +62,16 @@ def get_top_song():
         return f'No top tracks found for the artist "{artist_name}"', 404
 
     top_track = top_tracks_data['tracks'][0]
+    print(top_track)
+    # audio_preview = get_audio_preview(artist_name, top_track, SPOTIFY_API_TOKEN)
+    # if isinstance(audio_preview, tuple):
+    #     return audio_preview
 
-    top_track_mp3 = download_mp3(top_track['external_urls']['spotify'])
     return {
         'artist_name': artist_name,
         'top_track_name': top_track['name'],
         'top_track_url': top_track['external_urls']['spotify'],
-        'top_track_mp3': top_track_mp3,
+        'top_track_mp3': audio_preview
     }
 
 
@@ -99,34 +97,3 @@ def get_access_token():
     access_token = token_data["access_token"]
     return access_token
 
-
-def download_mp3(track_url):
-    try:
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'outtmpl': '%(title)s.%(ext)s',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }],
-        }
-
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(track_url, download=False)
-            if 'entries' in info:
-                video_url = info['entries'][0]['webpage_url']
-            else:
-                video_url = info.get('webpage_url')
-
-            if video_url:
-                output_dir = os.path.join(os.getcwd(), 'downloads')
-                os.makedirs(output_dir, exist_ok=True)
-                ydl.params['outtmpl'] = os.path.join(output_dir, '%(title)s.%(ext)s')
-                ydl.download([video_url])
-                return 'MP3 file downloaded successfully', 200
-            else:
-                return 'Failed to find video URL', 500
-
-    except Exception as e:
-        return f'Error downloading MP3 file: {str(e)}', 500
