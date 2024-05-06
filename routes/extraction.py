@@ -71,7 +71,7 @@ def get_top_song():
         'artist_name': artist_name,
         'top_track_name': top_track['name'],
         'top_track_url': top_track['external_urls']['spotify'],
-        'top_track_mp3': audio_preview
+        'top_track_mp3': ""
     }
 
 
