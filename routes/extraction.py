@@ -6,6 +6,7 @@ from flask import Blueprint, request
 extraction_blueprint = Blueprint('extraction', __name__)
 SPOTIFY_CLIENT_ID = os.environ.get('SPOTIFY_CLIENT_ID')
 SPOTIFY_CLIENT_SECRET = os.environ.get('SPOTIFY_CLIENT_SECRET')
+SPOTIFY_API_BASE_URL = 'https://api.spotify.com/v1'
 
 
 @extraction_blueprint.route('/top-song', methods=['GET'])
