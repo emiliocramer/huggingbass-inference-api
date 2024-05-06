@@ -12,8 +12,7 @@ SPOTIFY_CLIENT_SECRET = os.environ.get('SPOTIFY_CLIENT_SECRET')
 SPOTIFY_API_BASE_URL = 'https://api.spotify.com/v1'
 
 key_path = os.environ.get('GOOGLE_CLOUD_KEY_JSON')
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = key_path
-client = storage.Client()
+client = storage.Client.from_service_account_json(key_path)
 bucket_name = 'opus-storage-bucket'
 bucket = client.bucket(bucket_name)
 
