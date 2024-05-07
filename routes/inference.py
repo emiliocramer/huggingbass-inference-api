@@ -69,18 +69,24 @@ def process_inferred_audio(model_id, artist_id):
 def unzip_model_files(zipped_file):
     pth_file_url = None
     index_file_url = None
-
     with zipfile.ZipFile(zipped_file, 'r') as zip_ref:
         tmp_dir = tempfile.mkdtemp()
         zip_ref.extractall(tmp_dir)
+        extracted_files = os.listdir(tmp_dir)
 
-        print("extracted files: ", os.listdir(tmp_dir))
+        if len(extracted_files) == 1:
+            extracted_folder = os.path.join(tmp_dir, extracted_files[0])
+            for file_name in os.listdir(extracted_folder):
+                file_path = os.path.join(extracted_folder, file_name)
+                if file_name.endswith(".pth"):
+                    pth_file_url = file_path
+                elif file_name.endswith(".index"):
+                    index_file_url = file_path
+        else:
+            return 'Model file not found', 404
 
-        for file_name in os.listdir(tmp_dir):
-            if file_name.endswith(".pth"):
-                pth_file_url = os.path.join(tmp_dir, file_name)
-            elif file_name.endswith(".index"):
-                index_file_url = os.path.join(tmp_dir, file_name)
+        print("pth file url: ", pth_file_url)
+        print("index file url: ", index_file_url)
 
     if not pth_file_url or not index_file_url:
         return 'Model file not found', 404
