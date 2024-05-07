@@ -21,9 +21,6 @@ client = storage.Client.from_service_account_info(key_info)
 bucket_name = 'opus-storage-bucket'
 bucket = client.bucket(bucket_name)
 
-spleeter = spleeter.Separator('spleeter:2stems')
-
-
 @extraction_blueprint.route('/top-song', methods=['GET'])
 def get_top_song():
     model = separator.from_hparams(source="speechbrain/sepformer-wsj02mix",
@@ -101,7 +98,7 @@ def get_top_song():
         'artist_name': artist_name,
         'top_track_name': top_track['name'],
         'top_track_url': top_track['external_urls']['spotify'],
-        'top_track_mp3': blob.public_url,
+        'top_track_mp3': source_blob.public_url,
     }
 
 
