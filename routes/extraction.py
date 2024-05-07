@@ -79,8 +79,13 @@ def get_top_track(headers, artist_id, artist_name):
     if not top_tracks_data['tracks']:
         return f'No top tracks found for the artist "{artist_name}"', 404
 
-    # iterate until get top track with preview URL
-    top_track = next((track for track in top_tracks_data['tracks'] if track['preview_url']), None)
+    # Iterate until we find the first solo track with a preview URL
+    top_track = None
+    for track in top_tracks_data['tracks']:
+        if track['preview_url'] and not track['artists'][1:]:  # Check if the track features other artists
+            top_track = track
+            break
+
     if top_track is None:
         return f'No top track found with preview URL for the artist "{artist_name}"', 404
 
