@@ -91,18 +91,18 @@ def get_top_track(headers, artist_id, artist_name):
 def process_split_and_upload(artist_name, artist_id, top_track, preview_response):
     hb_client = Client("https://younver-speechbrain-speech-separation.hf.space/--replicas/lp1ql/")
 
-    rawblob = bucket.blob(f"reference-artist-audio/{artist_name}/raw/{top_track['name']}.mp3")
+    rawblob = bucket.blob(f"reference-artist-audios/{artist_name}/raw/{top_track['name']}.mp3")
     rawblob.upload_from_string(preview_response.content)
 
     split_result = hb_client.predict(rawblob.public_url, api_name="/predict")
     source1_path, source2_path = split_result
 
     with open(source1_path, 'rb') as source1_file:
-        source1_blob = bucket.blob(f"reference-artist-audio/{artist_name}/split/{top_track['name']}-source1.wav")
+        source1_blob = bucket.blob(f"reference-artist-audios/{artist_name}/split/{top_track['name']}-source1.wav")
         source1_blob.upload_from_file(source1_file)
 
     with open(source2_path, 'rb') as source2_file:
-        source2_blob = bucket.blob(f"reference-artist-audio/{artist_name}/split/{top_track['name']}-source2.wav")
+        source2_blob = bucket.blob(f"reference-artist-audios/{artist_name}/split/{top_track['name']}-source2.wav")
         source2_blob.upload_from_file(source2_file)
 
     if reference_artists_collection.find_one({'spotifyArtistId': artist_id}) is None:
