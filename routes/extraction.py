@@ -2,10 +2,13 @@ import os
 import requests
 import base64
 import json
+import torchaudio
 
 from flask import Blueprint, request
 from db import reference_artists_collection
 from google.cloud import storage
+from speechbrain.inference.separation import SepformerSeparation as separator
+
 
 extraction_blueprint = Blueprint('extraction', __name__)
 SPOTIFY_CLIENT_ID = os.environ.get('SPOTIFY_CLIENT_ID')
@@ -18,9 +21,13 @@ client = storage.Client.from_service_account_info(key_info)
 bucket_name = 'opus-storage-bucket'
 bucket = client.bucket(bucket_name)
 
+spleeter = spleeter.Separator('spleeter:2stems')
+
 
 @extraction_blueprint.route('/top-song', methods=['GET'])
 def get_top_song():
+    model = separator.from_hparams(source="speechbrain/sepformer-wsj02mix",
+                                   savedir='pretrained_models/sepformer-wsj02mix')
     SPOTIFY_API_TOKEN = get_access_token()
     artist_name = request.args.get('artist_name')
     if not artist_name:
@@ -29,7 +36,6 @@ def get_top_song():
     headers = {
         'Authorization': f'Bearer {SPOTIFY_API_TOKEN}'
     }
-
     search_query = f'artist:{artist_name}'
     search_params = {
         'q': search_query,
@@ -37,48 +43,59 @@ def get_top_song():
         'limit': 1
     }
 
+    # search for artist
     search_response = requests.get(
         f'{SPOTIFY_API_BASE_URL}/search',
         headers=headers,
         params=search_params
     )
-
     if search_response.status_code != 200:
         return f'Error fetching artist data: {search_response.text}', 500
-
     search_data = search_response.json()
     if not search_data['artists']['items']:
         return f'No artist found with the name "{artist_name}"', 404
-
     artist_id = search_data['artists']['items'][0]['id']
-
     if reference_artists_collection.find_one({'spotifyArtistId': artist_id}) is None:
         reference_artists_collection.insert_one({
             'spotifyArtistId': artist_id,
             'artistName': artist_name
         })
 
+    # get top tracks
     top_tracks_response = requests.get(
         f'{SPOTIFY_API_BASE_URL}/artists/{artist_id}/top-tracks',
         headers=headers,
     )
-
     if top_tracks_response.status_code != 200:
         return f'Error fetching top tracks data: {top_tracks_response.text}', 500
-
     top_tracks_data = top_tracks_response.json()
     if not top_tracks_data['tracks']:
         return f'No top tracks found for the artist "{artist_name}"', 404
 
+    # iterate until get top track with preview URL
     top_track = next((track for track in top_tracks_data['tracks'] if track['preview_url']), None)
     if top_track is None:
         return f'No top track found with preview URL for the artist "{artist_name}"', 404
-
     preview_url = top_track['preview_url']
     preview_response = requests.get(preview_url)
 
-    blob = bucket.blob(f"{artist_name}/{top_track['name']}.mp3")
-    blob.upload_from_string(preview_response.content)
+    # save raw
+    rawblob = bucket.blob(f"reference-artist-audio/{artist_name}/raw/{top_track['name']}.mp3")
+    rawblob.upload_from_string(preview_response.content)
+
+    # splitting
+    print("splitting...")
+    est_sources = model.separate_file(path=rawblob.public_url)
+    print("splitting done")
+    torchaudio.save("source1hat.wav", est_sources[:, :, 0].detach().cpu(), 8000)
+    split_blob_name = f"reference-artist-audio/{artist_name}/seperated/{top_track['name']}.wav"
+    source_blob = bucket.blob(split_blob_name)
+    source_blob.upload_from_filename("source1hat.wav")
+    if reference_artists_collection.find_one({'spotifyArtistId': artist_id}) is None:
+        reference_artists_collection.insert_one({
+            'spotifyArtistId': artist_id,
+            'artistName': artist_name
+        })
 
     return {
         'artist_name': artist_name,
