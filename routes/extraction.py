@@ -26,11 +26,7 @@ def get_top_song():
     artist_name = request.args.get('artist_name')
     if not artist_name:
         return 'Please provide an artist name', 400
-    threading.Thread(target=process_top_song, args=(artist_name,)).start()
-    return "Splitting successfully underway. Please wait for completion."
 
-
-def process_top_song(artist_name):
     SPOTIFY_API_TOKEN = get_access_token()
     headers = {
         'Authorization': f'Bearer {SPOTIFY_API_TOKEN}'
@@ -43,6 +39,17 @@ def process_top_song(artist_name):
     }
     print("searching for artist")
     artist_id = search_for_artist(headers, search_params, artist_name)
+
+    threading.Thread(target=process_top_song, args=(artist_name,)).start()
+
+    return "Splitting successfully underway. Please wait for completion", artist_id
+
+
+def process_top_song(artist_name, artist_id):
+    SPOTIFY_API_TOKEN = get_access_token()
+    headers = {
+        'Authorization': f'Bearer {SPOTIFY_API_TOKEN}'
+    }
 
     print(f"getting top track for {artist_name}")
     top_track_preview_url, top_track = get_top_track(headers, artist_id, artist_name)
