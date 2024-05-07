@@ -2,7 +2,8 @@ import os
 import requests
 import base64
 import json
-import asyncio
+import threading
+
 
 from flask import Blueprint, request
 from db import reference_artists_collection
@@ -23,15 +24,15 @@ bucket = client.bucket(bucket_name)
 
 @extraction_blueprint.route('/top-song', methods=['GET'])
 def get_top_song():
-    asyncio.run(process_top_song())
-    return "Splitting successfully underway. Please wait for completion."
-
-
-async def process_top_song():
-    SPOTIFY_API_TOKEN = get_access_token()
     artist_name = request.args.get('artist_name')
     if not artist_name:
         return 'Please provide an artist name', 400
+    threading.Thread(target=process_top_song, args=(artist_name,)).start()
+    return "Splitting successfully underway. Please wait for completion."
+
+
+def process_top_song(artist_name):
+    SPOTIFY_API_TOKEN = get_access_token()
     headers = {
         'Authorization': f'Bearer {SPOTIFY_API_TOKEN}'
     }
@@ -42,15 +43,15 @@ async def process_top_song():
         'limit': 1
     }
 
-    artist_id = await search_for_artist(headers, search_params, artist_name)
+    artist_id = search_for_artist(headers, search_params, artist_name)
 
-    top_track_preview_url, top_track = await get_top_track(headers, artist_id, artist_name)
+    top_track_preview_url, top_track = get_top_track(headers, artist_id, artist_name)
     preview_response = requests.get(top_track_preview_url)
 
-    await process_split_and_upload(artist_name, artist_id, top_track, preview_response)
+    process_split_and_upload(artist_name, artist_id, top_track, preview_response)
 
 
-async def search_for_artist(headers, search_params, artist_name):
+def search_for_artist(headers, search_params, artist_name):
     search_response = requests.get(
         f'{SPOTIFY_API_BASE_URL}/search',
         headers=headers,
@@ -66,7 +67,7 @@ async def search_for_artist(headers, search_params, artist_name):
     return artist_id
 
 
-async def get_top_track(headers, artist_id, artist_name):
+def get_top_track(headers, artist_id, artist_name):
     top_tracks_response = requests.get(
         f'{SPOTIFY_API_BASE_URL}/artists/{artist_id}/top-tracks',
         headers=headers,
@@ -85,14 +86,12 @@ async def get_top_track(headers, artist_id, artist_name):
     return top_track['preview_url'], top_track
 
 
-async def process_split_and_upload(artist_name, artist_id, top_track, preview_response):
+def process_split_and_upload(artist_name, artist_id, top_track, preview_response):
     hb_client = Client("https://younver-speechbrain-speech-separation.hf.space/--replicas/lp1ql/")
 
-    # save raw track
     rawblob = bucket.blob(f"reference-artist-audio/{artist_name}/raw/{top_track['name']}.mp3")
     rawblob.upload_from_string(preview_response.content)
 
-    # splitting
     splitResult = hb_client.predict(rawblob.public_url, api_name="/predict")
     print(splitResult)
 
