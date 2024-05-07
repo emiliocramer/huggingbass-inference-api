@@ -4,7 +4,7 @@ import base64
 import json
 import threading
 
-from flask import Blueprint, request
+from flask import Blueprint, request, jsonify
 from db import reference_artists_collection
 from google.cloud import storage
 from gradio_client import Client, file
@@ -44,7 +44,7 @@ def get_top_song():
         return f'No artist found with the name "{artist_name}"', 404
 
     threading.Thread(target=process_top_song, args=(artist_name, artist_id)).start()
-    return f"Splitting successfully underway for {artist_id}", 200
+    return jsonify({'artist_id': artist_id}), 200
 
 
 
