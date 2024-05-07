@@ -58,7 +58,7 @@ def process_inferred_audio(model_id, artist_id):
         return 'Reference artist audio not found', 404
 
     inferred_audios = []
-    for i in range(-15, 16):
+    for i in range(-12, 12):
         inferred_audio = infer_audio(pth_file_url, index_file_url, reference_url, i, model['name'])
         inferred_audios.append(inferred_audio)
 
