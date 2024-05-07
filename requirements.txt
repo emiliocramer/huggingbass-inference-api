@@ -94,4 +94,3 @@ uvicorn==0.23.2
 websockets==11.0.3
 Werkzeug==3.0.3
 wrapt==1.16.0
-ytmusicapi==1.7.0
