@@ -82,7 +82,7 @@ async def get_top_track(headers, artist_id, artist_name):
     if top_track is None:
         return f'No top track found with preview URL for the artist "{artist_name}"', 404
 
-    return top_track['preview_url'], top_track['name']
+    return top_track['preview_url'], top_track
 
 
 async def process_split_and_upload(artist_name, artist_id, top_track, preview_response):
