@@ -4,6 +4,7 @@ import requests
 import tempfile
 import os
 import json
+import queue
 from io import BytesIO
 
 from flask import Blueprint, request
@@ -21,6 +22,18 @@ client = storage.Client.from_service_account_info(key_info)
 bucket_name = 'opus-storage-bucket'
 bucket = client.bucket(bucket_name)
 
+task_queue = queue.Queue()
+
+
+def worker():
+    while True:
+        model_id, artist_id = task_queue.get()
+
+        try:
+            process_inferred_audio(model_id, artist_id)
+        finally:
+            task_queue.task_done()
+
 
 @inference_blueprint.route('/get-inferred-audio', methods=['POST'])
 def get_inferred_audio():
@@ -30,8 +43,9 @@ def get_inferred_audio():
 
     model_id = data['modelId']
     artist_id = data['spotifyArtistId']
-    threading.Thread(target=process_inferred_audio, args=(model_id, artist_id)).start()
-    return "Inferring successfully underway. Please wait for completion."
+
+    task_queue.put((model_id, artist_id))
+    return "Task added to the queue. It will be processed soon."
 
 
 def process_inferred_audio(model_id, artist_id):
@@ -119,3 +133,7 @@ def infer_audio(pth_file_url, index_file_url, reference_url, pitch, model_name):
         audio_file_blob.upload_from_file(audio_file)
 
     return audio_file_blob.public_url
+
+
+worker_thread = threading.Thread(target=worker, daemon=True)
+worker_thread.start()
