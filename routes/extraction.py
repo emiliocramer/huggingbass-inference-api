@@ -100,20 +100,16 @@ def process_split_and_upload(artist_name, artist_id, top_track, preview_response
         dereverb=False,
         api_name="/sound_separate"
     )
-    print(split_result)
-
-    # with open(source1_path, 'rb') as source1_file:
-    #     source1_blob = bucket.blob(f"reference-artist-audios/{artist_name}/split/{top_track['name']}-source1.wav")
-    #     source1_blob.upload_from_file(source1_file)
-    #
-    # with open(source2_path, 'rb') as source2_file:
-    #     source2_blob = bucket.blob(f"reference-artist-audios/{artist_name}/split/{top_track['name']}-source2.wav")
-    #     source2_blob.upload_from_file(source2_file)
+    voice_stem_path = split_result[0]
+    with open(voice_stem_path, 'rb') as source1_file:
+        source1_blob = bucket.blob(f"reference-artist-audios/{artist_name}/split/{top_track['name']}-vocal.wav")
+        source1_blob.upload_from_file(source1_file)
 
     if reference_artists_collection.find_one({'spotifyArtistId': artist_id}) is None:
         reference_artists_collection.insert_one({
+            'name': artist_name,
             'spotifyArtistId': artist_id,
-            'artistName': artist_name
+            'audioStemUrl': source1_blob.public_url
         })
 
     return "Splitting and uploading successful"
