@@ -46,7 +46,6 @@ def process_inferred_audio(model_id, artist_id):
     zipped_file = BytesIO(zipped_file_bytes)
 
     pth_file_url, index_file_url = unzip_model_files(zipped_file)
-
     reference_artist = reference_artists_collection.find_one({'spotifyArtistId': artist_id})
     if not reference_artist:
         return 'Reference artist not found', 404
