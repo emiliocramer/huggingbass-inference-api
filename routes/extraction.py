@@ -37,10 +37,11 @@ def get_top_song():
         'type': 'artist',
         'limit': 1
     }
+
     print("searching for artist")
     artist_id = search_for_artist(headers, search_params, artist_name)
 
-    threading.Thread(target=process_top_song, args=(artist_name,)).start()
+    threading.Thread(target=process_top_song, args=(artist_name, artist_id)).start()
 
     return "Splitting successfully underway. Please wait for completion", artist_id
 
