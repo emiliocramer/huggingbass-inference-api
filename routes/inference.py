@@ -88,8 +88,12 @@ def unzip_model_files(zipped_file):
         zip_ref.extractall(tmp_dir)
         extracted_files = os.listdir(tmp_dir)
 
-        print("extracted files: ", extracted_files)
-        extracted_folder = os.path.join(tmp_dir, extracted_files[0])
+        extracted_folder = extracted_files
+        if len(extracted_files) == 1:
+            extracted_folder = os.path.join(tmp_dir, extracted_files[0])
+
+        print("extracted files: ", extracted_folder)
+
         for file_name in os.listdir(extracted_folder):
             file_path = os.path.join(extracted_folder, file_name)
             if file_name.endswith(".pth"):
