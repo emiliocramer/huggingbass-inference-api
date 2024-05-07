@@ -35,12 +35,13 @@ def get_inferred_audio():
 
 
 def process_inferred_audio(model_id, artist_id):
+
     model = models_collection.find_one({'_id': ObjectId(model_id)})
     if not model:
         return 'Model not found', 404
 
     # Unzip the model file at index 1
-    zipped_file_url = model['fileUrls'][1]
+    zipped_file_url = model['fileUrls'][0]
     zipped_file_bytes = requests.get(zipped_file_url).content
     zipped_file = BytesIO(zipped_file_bytes)
 
