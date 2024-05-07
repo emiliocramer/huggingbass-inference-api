@@ -37,26 +37,31 @@ def get_comparison_score():
 
 def process_comparison(inferred_audio_urls, reference_audio_url):
     # Load the reference audio
-    reference_audio, _ = librosa.load(requests.get(reference_audio_url).content, sr=22050)
+    print("loading reference audio")
+    response = requests.get(reference_audio_url)
+    reference_audio, _ = librosa.load(io.BytesIO(response.content), sr=22050)
 
     # Compute the Mel spectrogram of the reference audio
+    print("getting it's mel spectogram")
     reference_mel_spec = librosa.feature.melspectrogram(y=reference_audio, sr=22050)
 
     similarity_scores = []
-
     for inferred_audio_url in inferred_audio_urls:
         # Load the inferred audio
-        inferred_audio, _ = librosa.load(requests.get(inferred_audio_url).content, sr=22050)
+        print("loading inferred audio")
+        response = requests.get(inferred_audio_url)
+        inferred_audio, _ = librosa.load(io.BytesIO(response.content), sr=22050)
 
+        print("getting it's mel spectogram")
         # Compute the Mel spectrogram of the inferred audio
         inferred_mel_spec = librosa.feature.melspectrogram(y=inferred_audio, sr=22050)
 
+        print("computing euclidean distance")
         # Compute the Euclidean distance between the Mel spectrograms
         distance = euclidean(reference_mel_spec.flatten(), inferred_mel_spec.flatten())
 
         # Normalize the distance to a similarity score between 0 and 100
         similarity_score = 100 * (1 / (1 + distance))
-
         similarity_scores.append(similarity_score)
 
     return jsonify(similarity_scores)
