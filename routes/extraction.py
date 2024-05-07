@@ -93,7 +93,7 @@ def process_split_and_upload(artist_name, artist_id, top_track, preview_response
     rawblob = bucket.blob(f"reference-artist-audios/{artist_name}/raw/{top_track['name']}.mp3")
     rawblob.upload_from_string(preview_response.content)
 
-    split_result = client.predict(
+    split_result = hb_client.predict(
         media_file=file(rawblob.public_url),
         stem="vocal",
         main=False,
