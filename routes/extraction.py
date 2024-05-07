@@ -42,12 +42,14 @@ def process_top_song(artist_name):
         'type': 'artist',
         'limit': 1
     }
-
+    print("searching for artist")
     artist_id = search_for_artist(headers, search_params, artist_name)
 
+    print(f"getting top track for {artist_name}")
     top_track_preview_url, top_track = get_top_track(headers, artist_id, artist_name)
     preview_response = requests.get(top_track_preview_url)
 
+    print(f"processing split and upload for {top_track['name']}")
     process_split_and_upload(artist_name, artist_id, top_track, preview_response)
 
 
@@ -92,8 +94,16 @@ def process_split_and_upload(artist_name, artist_id, top_track, preview_response
     rawblob = bucket.blob(f"reference-artist-audio/{artist_name}/raw/{top_track['name']}.mp3")
     rawblob.upload_from_string(preview_response.content)
 
-    splitResult = hb_client.predict(rawblob.public_url, api_name="/predict")
-    print(splitResult)
+    split_result = hb_client.predict(rawblob.public_url, api_name="/predict")
+    source1_path, source2_path = split_result
+
+    with open(source1_path, 'rb') as source1_file:
+        source1_blob = bucket.blob(f"reference-artist-audio/{artist_name}/split/{top_track['name']}-source1.wav")
+        source1_blob.upload_from_file(source1_file)
+
+    with open(source2_path, 'rb') as source2_file:
+        source2_blob = bucket.blob(f"reference-artist-audio/{artist_name}/split/{top_track['name']}-source2.wav")
+        source2_blob.upload_from_file(source2_file)
 
     if reference_artists_collection.find_one({'spotifyArtistId': artist_id}) is None:
         reference_artists_collection.insert_one({
