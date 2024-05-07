@@ -74,6 +74,8 @@ def unzip_model_files(zipped_file):
         tmp_dir = tempfile.mkdtemp()
         zip_ref.extractall(tmp_dir)
 
+        print("extracted files: ", os.listdir(tmp_dir))
+
         for file_name in os.listdir(tmp_dir):
             if file_name.endswith(".pth"):
                 pth_file_url = os.path.join(tmp_dir, file_name)
