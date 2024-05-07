@@ -44,7 +44,7 @@ def get_top_song():
         return f'No artist found with the name "{artist_name}"', 404
 
     threading.Thread(target=process_top_song, args=(artist_name, artist_id)).start()
-    return f"Splitting successfully underway for {artist_name}", 200
+    return f"Splitting successfully underway for {artist_id}", 200
 
 
 
