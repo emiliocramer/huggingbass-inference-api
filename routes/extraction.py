@@ -40,10 +40,12 @@ def get_top_song():
 
     print("searching for artist")
     artist_id = search_for_artist(headers, search_params, artist_name)
+    if not artist_id:
+        return f'No artist found with the name "{artist_name}"', 404
 
     threading.Thread(target=process_top_song, args=(artist_name, artist_id)).start()
+    return f"Splitting successfully underway for {artist_name}", 200
 
-    return "Splitting successfully underway. Please wait for completion", artist_id
 
 
 def process_top_song(artist_name, artist_id):
