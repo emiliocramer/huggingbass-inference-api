@@ -63,4 +63,4 @@ def process_comparison(inferred_audio_urls, reference_audio_url):
         similarity_score = 100 * (1 / (1 + distance))
         similarity_scores.append(similarity_score)
 
-    return jsonify(similarity_scores)
+    print(similarity_scores)
