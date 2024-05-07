@@ -64,3 +64,5 @@ def process_comparison(inferred_audio_urls, reference_audio_url):
         similarity_scores.append(similarity_score)
 
     print(similarity_scores)
+    print(max(similarity_scores))
+    return max(similarity_scores)
