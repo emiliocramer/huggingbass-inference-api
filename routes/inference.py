@@ -109,6 +109,8 @@ def unzip_model_files(zipped_file):
 
 
 def infer_audio(pth_file_url, index_file_url, reference_url, pitch, model_name):
+    print("pth file url: ", pth_file_url)
+    print("index file url: ", index_file_url)
     print("inferring pitch: ", pitch)
     hb_client = Client("r3gm/rvc_zero")
 
