@@ -87,6 +87,7 @@ def get_top_track(headers, artist_id, artist_name):
             break
 
     if top_track is None:
+
         return f'No top track found with preview URL for the artist "{artist_name}"', 404
 
     return top_track['preview_url'], top_track
