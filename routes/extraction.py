@@ -7,7 +7,7 @@ import torchaudio
 from flask import Blueprint, request
 from db import reference_artists_collection
 from google.cloud import storage
-from speechbrain.inference.separation import SepformerSeparation as separator
+from gradio_client import Client
 
 
 extraction_blueprint = Blueprint('extraction', __name__)
@@ -23,8 +23,8 @@ bucket = client.bucket(bucket_name)
 
 @extraction_blueprint.route('/top-song', methods=['GET'])
 def get_top_song():
-    model = separator.from_hparams(source="speechbrain/sepformer-wsj02mix",
-                                   savedir='pretrained_models/sepformer-wsj02mix')
+    client = Client("https://younver-speechbrain-speech-separation.hf.space/--replicas/lp1ql/")
+
     SPOTIFY_API_TOKEN = get_access_token()
     artist_name = request.args.get('artist_name')
     if not artist_name:
@@ -81,13 +81,10 @@ def get_top_song():
     rawblob.upload_from_string(preview_response.content)
 
     # splitting
-    print("splitting...")
-    est_sources = model.separate_file(path=rawblob.public_url)
-    print("splitting done")
-    torchaudio.save("source1hat.wav", est_sources[:, :, 0].detach().cpu(), 8000)
-    split_blob_name = f"reference-artist-audio/{artist_name}/seperated/{top_track['name']}.wav"
-    source_blob = bucket.blob(split_blob_name)
-    source_blob.upload_from_filename("source1hat.wav")
+    splitResult = client.predict(rawblob.public_url, api_name="/predict")
+    print(splitResult)
+
+
     if reference_artists_collection.find_one({'spotifyArtistId': artist_id}) is None:
         reference_artists_collection.insert_one({
             'spotifyArtistId': artist_id,
@@ -98,7 +95,6 @@ def get_top_song():
         'artist_name': artist_name,
         'top_track_name': top_track['name'],
         'top_track_url': top_track['external_urls']['spotify'],
-        'top_track_mp3': source_blob.public_url,
     }
 
 
