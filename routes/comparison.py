@@ -4,12 +4,11 @@ import io
 import json
 import threading
 import librosa
-import jsonify
-
-
+from bson.objectid import ObjectId
 from flask import Blueprint, request
 from google.cloud import storage
 from scipy.spatial.distance import euclidean
+from db import models_collection
 
 
 comparison_blueprint = Blueprint('comparison', __name__)
@@ -24,17 +23,18 @@ bucket = client.bucket(bucket_name)
 @comparison_blueprint.route('/get-score', methods=['POST'])
 def get_comparison_score():
     data = request.get_json()
-    if 'inferredAudioUrls' not in data or 'referenceAudioUrl' not in data:
-        return 'Missing inferredAudioUrls or referenceAudioUrl in request body', 400
+    if 'inferredAudioUrls' not in data or 'referenceAudioUrl' not in data or 'modelId' not in data:
+        return 'Missing inferredAudioUrls or referenceAudioUrl or modelId in request body', 400
 
     inferred_audio_urls = data['inferredAudioUrls']
     reference_audio_url = data['referenceAudioUrl']
+    model_id = data['modelId']
 
-    threading.Thread(target=process_comparison, args=(inferred_audio_urls, reference_audio_url)).start()
+    threading.Thread(target=process_comparison, args=(inferred_audio_urls, reference_audio_url, model_id)).start()
     return "Comparison successfully underway. Please wait for completion."
 
 
-def process_comparison(inferred_audio_urls, reference_audio_url):
+def process_comparison(inferred_audio_urls, reference_audio_url, model_id):
     # Load the reference audio
     print("loading reference audio")
     response = requests.get(reference_audio_url)
@@ -65,4 +65,9 @@ def process_comparison(inferred_audio_urls, reference_audio_url):
 
     print(similarity_scores)
     print(max(similarity_scores))
+
+    model = models_collection.find_one({'_id': ObjectId(model_id)})
+    model['qualityScore'] = max(similarity_scores)
+    models_collection.update_one({'_id': ObjectId(model_id)}, {'$set': model})
+
     return max(similarity_scores)
