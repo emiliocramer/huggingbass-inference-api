@@ -40,8 +40,11 @@ def process_inferred_audio(model_id, artist_id):
     if not model:
         return 'Model not found', 404
 
+    print("found model: ", model['name'])
     # Unzip the model file at index 1
     zipped_file_url = model['fileUrls'][0]
+    print("zipped file url: ", zipped_file_url)
+
     zipped_file_bytes = requests.get(zipped_file_url).content
     zipped_file = BytesIO(zipped_file_bytes)
 
@@ -84,16 +87,18 @@ def unzip_model_files(zipped_file):
 
 
 def infer_audio(pth_file_url, index_file_url, reference_url, pitch, model_name):
-
     print("inferring pitch: ", pitch)
-
     hb_client = Client("r3gm/rvc_zero")
+    with open(pth_file_url, 'rb') as pth_file:
+        pth_file_content = pth_file.read()
+    with open(index_file_url, 'rb') as index_file:
+        index_file_content = index_file.read()
     result = hb_client.predict(
         audio_files=[file(reference_url)],
-        file_m=file(pth_file_url),
+        file_m=pth_file_content,
         pitch_alg="rmvpe",
         pitch_lvl=pitch,
-        file_index=file(index_file_url),
+        file_index=index_file_content,
         index_inf=1,
         r_m_f=4,
         e_r=1,
@@ -101,10 +106,8 @@ def infer_audio(pth_file_url, index_file_url, reference_url, pitch, model_name):
         api_name="/run"
     )
     print("finished inferring pitch: ", pitch)
-
     audio_url = result[0]
     with open(audio_url, 'rb') as audio_file:
         audio_file_blob = bucket.blob(f"model-inferred-audios/{model_name}/pitch{pitch}-vocal.wav")
         audio_file_blob.upload_from_file(audio_file)
-
     return audio_file_blob.public_url
