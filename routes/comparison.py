@@ -1,9 +1,8 @@
 import os
 import requests
-import base64
+import io
 import json
 import threading
-import numpy as np
 import librosa
 import jsonify
 
@@ -42,7 +41,7 @@ def process_comparison(inferred_audio_urls, reference_audio_url):
     reference_audio, _ = librosa.load(io.BytesIO(response.content), sr=22050)
 
     # Compute the Mel spectrogram of the reference audio
-    print("getting it's mel spectogram")
+    print("getting it's mel spectrogram")
     reference_mel_spec = librosa.feature.melspectrogram(y=reference_audio, sr=22050)
 
     similarity_scores = []
@@ -52,7 +51,7 @@ def process_comparison(inferred_audio_urls, reference_audio_url):
         response = requests.get(inferred_audio_url)
         inferred_audio, _ = librosa.load(io.BytesIO(response.content), sr=22050)
 
-        print("getting it's mel spectogram")
+        print("getting it's mel spectrogram")
         # Compute the Mel spectrogram of the inferred audio
         inferred_mel_spec = librosa.feature.melspectrogram(y=inferred_audio, sr=22050)
 
