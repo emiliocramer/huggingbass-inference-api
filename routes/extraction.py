@@ -82,7 +82,7 @@ def get_top_track(headers, artist_id, artist_name):
     # Iterate until we find the first solo track with a preview URL
     top_track = None
     for track in top_tracks_data['tracks']:
-        if track['preview_url'] and not track['artists'][1:]:  # Check if the track features other artists
+        if track['preview_url'] and len(track['artists']) == 1:
             top_track = track
             break
 
