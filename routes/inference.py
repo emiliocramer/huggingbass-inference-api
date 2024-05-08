@@ -48,6 +48,7 @@ def get_inferred_audio():
     if not reference_artist:
         return 'Reference artist not found', 404
     reference_url = reference_artist['audioStemUrl']
+
     task_queue.put((model_id, artist_id, reference_url))
     return jsonify({'message': "Task added to the queue. It will be processed soon.", 'referenceAudio': reference_url}), 200
 
