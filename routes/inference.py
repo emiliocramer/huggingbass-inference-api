@@ -67,8 +67,7 @@ def process_inferred_audio(model_id, reference_url):
     zipped_file_bytes = requests.get(zipped_file_url).content
     zipped_file = BytesIO(zipped_file_bytes)
 
-    if not reference_url:
-        return 'Reference artist audio not found', 404
+    pth_file_url, index_file_url = unzip_model_files(zipped_file)
 
     inferred_audios = []
     for i in range(-12, 13):
