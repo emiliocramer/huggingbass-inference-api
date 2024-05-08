@@ -80,7 +80,6 @@ def process_inferred_audio(model_id, reference_url):
 
     pth_file_url = None
     index_file_url = None
-    tmp_dir = tempfile.mkdtemp()
 
     # Unzip the model file at index 1
     if len(model['fileUrls']) == 0:
@@ -93,11 +92,10 @@ def process_inferred_audio(model_id, reference_url):
 
     else:
         for file_name in model['fileUrls']:
-            file_path = os.path.join(tmp_dir, file_name)
             if file_name.endswith(".pth"):
-                pth_file_url = file_path
+                pth_file_url = file_name
             elif file_name.endswith(".index"):
-                index_file_url = file_path
+                index_file_url = file_name
 
     inferred_audios = []
     for i in range(-12, 13):
@@ -150,7 +148,7 @@ def infer_audio(pth_file_url, index_file_url, reference_url, pitch, model_name):
     hb_client = Client("r3gm/rvc_zero")
 
     result = hb_client.predict(
-        audio_files=[reference_url],
+        audio_files=[file(reference_url)],
         file_m=pth_file_url,
         pitch_alg="rmvpe+",
         pitch_lvl=pitch,
