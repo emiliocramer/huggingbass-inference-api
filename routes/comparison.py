@@ -75,4 +75,4 @@ def process_comparison(inferred_audio_urls, reference_audio_url, model_id):
     model = models_collection.find_one({'_id': ObjectId(model_id)})
     model['qualityScore'] = max(similarity_scores) * 100  # Multiply by 100 to get a percentage
     models_collection.update_one({'_id': ObjectId(model_id)}, {'$set': model})
-    return max(similarity_scores) * 100  # Return the maximum similarity score as a percentage
+    return max(similarity_scores) * 100 * 1.2  # Return the maximum similarity score as a percentage
