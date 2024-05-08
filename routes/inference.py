@@ -150,7 +150,7 @@ def infer_audio(pth_file_url, index_file_url, reference_url, pitch, model_name):
     hb_client = Client("r3gm/rvc_zero")
 
     result = hb_client.predict(
-        audio_files=[file(reference_url)],
+        audio_files=[reference_url],
         file_m=pth_file_url,
         pitch_alg="rmvpe+",
         pitch_lvl=pitch,
