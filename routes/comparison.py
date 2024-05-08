@@ -23,7 +23,6 @@ bucket = client.bucket(bucket_name)
 @comparison_blueprint.route('/get-score', methods=['POST'])
 def get_comparison_score():
     data = request.get_json()
-    print(data)
     if 'inferredAudioUrls' not in data or 'referenceAudioUrl' not in data or 'modelId' not in data:
         return 'Missing inferredAudioUrls or referenceAudioUrl or modelId in request body', 400
 
