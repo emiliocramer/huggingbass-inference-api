@@ -63,8 +63,10 @@ def get_top_song_mp3():
     model_id = data['modelId']
     reference_track_mp3 = data['referenceTrackMp3']
 
-    threading.Thread(target=process_split_and_upload_from_mp3, args=(model_id, reference_track_mp3)).start()
-    return jsonify({'modelId': model_id}), 200
+    random_model_id = ObjectId()
+
+    threading.Thread(target=process_split_and_upload_from_mp3, args=(model_id, reference_track_mp3, random_model_id)).start()
+    return jsonify({'modelId': model_id, 'taskIdentifier': random_model_id}), 200
 
 
 def process_top_song(artist_name, artist_id):
@@ -157,7 +159,7 @@ def process_split_and_upload(artist_name, artist_id, top_track, preview_response
     return "Splitting and uploading successful"
 
 
-def process_split_and_upload_from_mp3(model_id, top_track):
+def process_split_and_upload_from_mp3(model_id, top_track, random_model_id):
     hb_client = Client("r3gm/Audio_separator")
 
     split_result = hb_client.predict(
@@ -174,6 +176,7 @@ def process_split_and_upload_from_mp3(model_id, top_track):
 
     model = models_collection.find_one({'_id': ObjectId(model_id)})
     model['referenceIsolatedVocal'] = audio_file_blob.public_url
+    model['referenceIsolatedVocalId'] = random_model_id
     models_collection.update_one({'_id': ObjectId(model_id)}, {'$set': model})
     print("Splitting and uploading successful")
 
