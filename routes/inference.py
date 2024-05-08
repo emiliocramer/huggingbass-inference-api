@@ -44,11 +44,16 @@ def get_inferred_audio():
     model_id = data['modelId']
     artist_id = data['spotifyArtistId']
 
-    task_queue.put((model_id, artist_id))
-    return jsonify({'message': "Task added to the queue. It will be processed soon."}), 200
+    reference_artist = reference_artists_collection.find_one({'spotifyArtistId': artist_id})
+    if not reference_artist:
+        return 'Reference artist not found', 404
+    reference_url = reference_artist['audioStemUrl']
+
+    task_queue.put((model_id, artist_id, reference_url))
+    return jsonify({'message': "Task added to the queue. It will be processed soon.", 'referenceAudio': reference_url}), 200
 
 
-def process_inferred_audio(model_id, artist_id):
+def process_inferred_audio(model_id, artist_id, reference_url):
 
     model = models_collection.find_one({'_id': ObjectId(model_id)})
     if not model:
@@ -62,12 +67,6 @@ def process_inferred_audio(model_id, artist_id):
     zipped_file_bytes = requests.get(zipped_file_url).content
     zipped_file = BytesIO(zipped_file_bytes)
 
-    pth_file_url, index_file_url = unzip_model_files(zipped_file)
-    reference_artist = reference_artists_collection.find_one({'spotifyArtistId': artist_id})
-    if not reference_artist:
-        return 'Reference artist not found', 404
-
-    reference_url = reference_artist['audioStemUrl']
     if not reference_url:
         return 'Reference artist audio not found', 404
 
