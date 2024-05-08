@@ -175,7 +175,6 @@ def process_split_and_upload_from_mp3(model_id, top_track):
     model = models_collection.find_one({'_id': ObjectId(model_id)})
     model['referenceIsolatedVocal'] = audio_file_blob.public_url
     models_collection.update_one({'_id': ObjectId(model_id)}, {'$set': model})
-
     print("Splitting and uploading successful")
 
 
