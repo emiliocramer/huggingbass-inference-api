@@ -10,6 +10,8 @@ from flask import Blueprint, request, jsonify
 from db import reference_artists_collection
 from google.cloud import storage
 from googleapiclient.discovery import build
+from db import models_collection
+from bson.objectid import ObjectId
 
 from gradio_client import Client, file
 
@@ -26,8 +28,8 @@ bucket = client.bucket(bucket_name)
 GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
 
 
-@extraction_blueprint.route('/top-song', methods=['GET'])
-def get_top_song():
+@extraction_blueprint.route('/top-song-from-name', methods=['GET'])
+def get_top_song_name():
     artist_name = request.args.get('artist_name')
     if not artist_name:
         return 'Please provide an artist name', 400
@@ -50,6 +52,28 @@ def get_top_song():
 
     threading.Thread(target=process_top_song, args=(artist_name, artist_id)).start()
     return jsonify({'artist_id': artist_id}), 200
+
+
+@extraction_blueprint.route('/top-song-from-mp3', methods=['POST'])
+def get_top_song_mp3():
+    data = request.get_json()
+    if 'modelId' not in data or 'referenceTrackMp3' not in data:
+        return 'Missing modelId or referenceTrackMp3 in request body', 400
+
+    model_id = data['modelId']
+    reference_track_base64 = data['referenceTrackMp3'].split(',')[1]
+
+    # Save the base64 string to a file
+    with open('isolated-vocal.wav', 'wb') as file:
+        file.write(base64.b64decode(reference_track_base64))
+
+    # Upload the file to GCP
+    with open('reference-audio.mp3', 'rb') as audio_file:
+        audio_file_blob = bucket.blob(f"reference-artist-audios/{model_id}/raw/uploaded-song.mp3")
+        audio_file_blob.upload_from_file(audio_file)
+
+    threading.Thread(target=process_split_and_upload_from_mp3, args=(model_id, audio_file_blob.public_url)).start()
+    return jsonify({'modelId': model_id}), 200
 
 
 def process_top_song(artist_name, artist_id):
@@ -139,6 +163,29 @@ def process_split_and_upload(artist_name, artist_id, top_track, preview_response
             'audioStemUrl': source1_blob.public_url
         })
 
+    return "Splitting and uploading successful"
+
+
+def process_split_and_upload_from_mp3(model_id, top_track):
+    hb_client = Client("r3gm/Audio_separator")
+
+    split_result = hb_client.predict(
+        media_file=file(top_track),
+        stem="vocal",
+        main=False,
+        dereverb=False,
+        api_name="/sound_separate"
+    )
+    voice_stem_path = split_result[0]
+    with open(voice_stem_path, 'rb') as source1_file:
+        audio_file_blob = bucket.blob(f"reference-artist-audios/{model_id}/cleaned/uploaded-song.wav")
+        audio_file_blob.upload_from_file(source1_file)
+
+    model = models_collection.find_one({'_id': ObjectId(model_id)})
+    model['referenceIsolatedVocal'] = audio_file_blob.public_url
+    models_collection.update_one({'_id': ObjectId(model_id)}, {'$set': model})
+
+    print("Splitting and uploading successful")
     return "Splitting and uploading successful"
 
 
