@@ -44,9 +44,12 @@ def get_inferred_audio():
     model_id = data['modelId']
     artist_id = data['spotifyArtistId']
 
-    reference_artist = reference_artists_collection.find_one({'spotifyArtistId': artist_id})
-    if not reference_artist:
-        return 'Reference artist not found', 404
+    reference_artist = None
+
+    # try to get reference artist from collection until its found
+    while not reference_artist:
+        reference_artist = reference_artists_collection.find_one({'spotifyArtistId': artist_id})
+
     reference_url = reference_artist['audioStemUrl']
 
     task_queue.put((model_id, reference_url))
