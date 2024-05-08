@@ -72,8 +72,8 @@ def get_top_song_mp3():
         audio_file_blob = bucket.blob(f"reference-artist-audios/{model_id}/raw/uploaded-song.mp3")
         audio_file_blob.upload_from_file(audio_file)
 
-    threading.Thread(target=process_split_and_upload_from_mp3, args=(model_id, audio_file_blob.public_url)).start()
-    return jsonify({'modelId': model_id}), 200
+    isolated_audio_url = process_split_and_upload_from_mp3(model_id, audio_file_blob.public_url)
+    return jsonify({'modelId': model_id, 'isolatedAudioUrl': isolated_audio_url}), 200
 
 
 def process_top_song(artist_name, artist_id):
@@ -186,7 +186,7 @@ def process_split_and_upload_from_mp3(model_id, top_track):
     models_collection.update_one({'_id': ObjectId(model_id)}, {'$set': model})
 
     print("Splitting and uploading successful")
-    return "Splitting and uploading successful"
+    return audio_file_blob.public_url
 
 
 def get_access_token():
