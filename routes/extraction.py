@@ -194,8 +194,7 @@ def download_from_youtube(video_id, artist_name):
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=True)
-        downloaded_filename = info.get('filename')
-        print(f"Downloaded YouTube video as: {downloaded_filename}")
+        print(f"Downloaded YouTube video as: {info}")
 
     blob_name = f"reference-artist-audios/{artist_name}/raw/youtube-track.mp3"
     blob = bucket.blob(blob_name)
