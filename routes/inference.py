@@ -41,6 +41,7 @@ def get_inferred_audio_wav():
     data = request.get_json()
     if 'modelId' not in data or 'isolatedVocalUrl' not in data:
         return 'Missing modelId or isolatedVocal in request body', 400
+
     model_id = data['modelId']
     isolated_vocal_url = data['isolatedVocalUrl']
 
