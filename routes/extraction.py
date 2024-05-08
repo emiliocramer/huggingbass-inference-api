@@ -184,16 +184,15 @@ def search_youtube(query):
 def download_from_youtube(video_id, artist_name):
     ydl_opts = {
         'format': 'bestaudio/best',
-        'outtmpl': 'track-name.%(ext)s',
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
-            'preferredquality': '192'
-        }]
+            'preferredquality': '192',
+        }],
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.download(f'https://www.youtube.com/watch?v={video_id}')
+        info = ydl.([f'https://www.youtube.com/watch?v={video_id}'])
     print("ydl", ydl)
 
     with open('track-name.mp3', 'rb') as audio_file:
