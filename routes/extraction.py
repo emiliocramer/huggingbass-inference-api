@@ -105,9 +105,8 @@ def get_top_track(headers, artist_id, artist_name):
         video_id = search_youtube(query)
 
         if video_id:
-            track_name = artist_name.replace(' ', '_')
-            public_url = download_from_youtube(video_id, artist_name, track_name)
-            return public_url, {'name': track_name}
+            public_url = download_from_youtube(video_id, artist_name)
+            return public_url, {"name": "Youtube video"}
 
         else:
             return 'No preview URL found for any of the top tracks', 404
@@ -191,13 +190,8 @@ def download_from_youtube(video_id, artist_name, track_name):
     response = yt_request.execute()
     video_title = response['items'][0]['snippet']['title']
 
-    blob_name = f"reference-artist-audios/{artist_name}/raw/{track_name}.mp3"
-    blob = bucket.blob(blob_name)
-
     url = f"https://www.youtube.com/watch?v={video_id}"
     response = requests.get(url, stream=True)
+    print(url)
 
-    blob.upload_from_string(response.content)
-    blob.make_public()
-
-    return blob.public_url
+    return url
