@@ -77,14 +77,24 @@ def process_inferred_audio(model_id, reference_url):
         return 'Model not found', 404
 
     print("found model: ", model['name'])
+
+    pth_file_url = None
+    index_file_url = None
     # Unzip the model file at index 1
-    zipped_file_url = model['fileUrls'][0]
-    print("zipped file url: ", zipped_file_url)
+    if len(model['fileUrls']) == 0:
+        zipped_file_url = model['fileUrls'][0]
+        print("zipped file url: ", zipped_file_url)
 
-    zipped_file_bytes = requests.get(zipped_file_url).content
-    zipped_file = BytesIO(zipped_file_bytes)
-
-    pth_file_url, index_file_url = unzip_model_files(zipped_file)
+        zipped_file_bytes = requests.get(zipped_file_url).content
+        zipped_file = BytesIO(zipped_file_bytes)
+        pth_file_url, index_file_url = unzip_model_files(zipped_file)
+    else:
+        for file_name in model['fileUrls']:
+            file_path = os.path.join(tmp_dir, file_name)
+            if file_name.endswith(".pth"):
+                pth_file_url = file_path
+            elif file_name.endswith(".index"):
+                index_file_url = file_path
 
     inferred_audios = []
     for i in range(-12, 13):
