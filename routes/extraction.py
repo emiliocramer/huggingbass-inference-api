@@ -170,7 +170,7 @@ def process_split_and_upload_from_mp3(model_id, top_track):
     hb_client = Client("r3gm/Audio_separator")
 
     split_result = hb_client.predict(
-        media_file=top_track,
+        media_file=file(top_track),
         stem="vocal",
         main=False,
         dereverb=False,
