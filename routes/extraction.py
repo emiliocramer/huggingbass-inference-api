@@ -1,4 +1,5 @@
 import os
+import io
 import requests
 import base64
 import json
@@ -7,6 +8,9 @@ import threading
 from flask import Blueprint, request, jsonify
 from db import reference_artists_collection
 from google.cloud import storage
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseDownload
+
 from gradio_client import Client, file
 
 extraction_blueprint = Blueprint('extraction', __name__)
@@ -96,8 +100,16 @@ def get_top_track(headers, artist_id, artist_name):
             break
 
     if top_track is None:
+        query = f"{artist_name} official audio"
+        video_id = search_youtube(query)
 
-        return f'No top track found with preview URL for the artist "{artist_name}"', 404
+        if video_id:
+            track_name = artist_name.replace(' ', '_')
+            public_url = download_from_youtube(video_id, artist_name, track_name)
+            return public_url, {'name': track_name}
+
+        else:
+            return 'No preview URL found for any of the top tracks', 404
 
     return top_track['preview_url'], top_track
 
@@ -151,3 +163,40 @@ def get_access_token():
     token_data = token_response.json()
     access_token = token_data["access_token"]
     return access_token
+
+
+def search_youtube(query):
+    youtube = build('youtube', 'v3', developerKey='YOUR_API_KEY')
+    search_response = youtube.search().list(
+        q=query,
+        type='video',
+        part='id,snippet',
+        maxResults=1
+    ).execute()
+
+    if search_response.get('items'):
+        video_id = search_response['items'][0]['id']['videoId']
+        return video_id
+    else:
+        return None
+
+
+def download_from_youtube(video_id, artist_name, track_name):
+    youtube = build('youtube', 'v3', developerKey='YOUR_API_KEY')
+    yt_request = youtube.videos().list(
+        part='snippet',
+        id=video_id
+    )
+    response = yt_request.execute()
+    video_title = response['items'][0]['snippet']['title']
+
+    blob_name = f"reference-artist-audios/{artist_name}/raw/{track_name}.mp3"
+    blob = bucket.blob(blob_name)
+
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    response = requests.get(url, stream=True)
+
+    blob.upload_from_string(response.content)
+    blob.make_public()
+
+    return blob.public_url
