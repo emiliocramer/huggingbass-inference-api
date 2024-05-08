@@ -47,7 +47,6 @@ def get_top_song():
     return jsonify({'artist_id': artist_id}), 200
 
 
-
 def process_top_song(artist_name, artist_id):
     SPOTIFY_API_TOKEN = get_access_token()
     headers = {
