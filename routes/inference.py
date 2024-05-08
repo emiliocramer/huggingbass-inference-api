@@ -81,6 +81,7 @@ def process_inferred_audio(model_id, reference_url):
     pth_file_url = None
     index_file_url = None
 
+    print('model file urls: ', model['fileUrls'])
     # Unzip the model file at index 1
     if len(model['fileUrls']) == 0:
         zipped_file_url = model['fileUrls'][0]
