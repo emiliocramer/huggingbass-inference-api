@@ -7,7 +7,7 @@ import json
 import queue
 from io import BytesIO
 
-from flask import Blueprint, request
+from flask import Blueprint, request, jsonify
 from db import models_collection, reference_artists_collection
 from google.cloud import storage
 from bson.objectid import ObjectId
@@ -45,7 +45,7 @@ def get_inferred_audio():
     artist_id = data['spotifyArtistId']
 
     task_queue.put((model_id, artist_id))
-    return "Task added to the queue. It will be processed soon."
+    return jsonify({'message': "Task added to the queue. It will be processed soon."}), 200
 
 
 def process_inferred_audio(model_id, artist_id):

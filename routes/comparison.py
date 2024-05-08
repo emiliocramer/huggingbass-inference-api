@@ -5,7 +5,7 @@ import json
 import threading
 import librosa
 from bson.objectid import ObjectId
-from flask import Blueprint, request
+from flask import Blueprint, request, jsonify
 from google.cloud import storage
 from scipy.spatial.distance import euclidean
 from db import models_collection
@@ -31,7 +31,7 @@ def get_comparison_score():
     model_id = data['modelId']
 
     threading.Thread(target=process_comparison, args=(inferred_audio_urls, reference_audio_url, model_id)).start()
-    return "Comparison successfully underway. Please wait for completion."
+    return jsonify({'message': "Comparison successfully underway. Please wait for completion."}), 200
 
 
 def process_comparison(inferred_audio_urls, reference_audio_url, model_id):
