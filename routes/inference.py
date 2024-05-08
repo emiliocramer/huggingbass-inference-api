@@ -38,22 +38,25 @@ def worker():
 @inference_blueprint.route('/get-inferred-audio', methods=['POST'])
 def get_inferred_audio():
     data = request.get_json()
-    if 'modelId' not in data or 'spotifyArtistId' not in data:
-        return 'Missing modelId or spotifyArtistId in request body', 400
+    if 'modelId' not in data or 'isolatedVocal' not in data:
+        return 'Missing modelId or isolatedVocal in request body', 400
 
     model_id = data['modelId']
-    artist_id = data['spotifyArtistId']
+    isolated_vocal_base64 = data['isolatedVocal'].split(',')[1]
 
-    reference_artist = None
+    # Save the base64 string to a file
+    with open('isolated-vocal.wav', 'wb') as file:
+        file.write(base64.b64decode(isolated_vocal_base64))
 
-    # try to get reference artist from collection until its found
-    while not reference_artist:
-        reference_artist = reference_artists_collection.find_one({'spotifyArtistId': artist_id})
+    # Upload the file to GCP
+    with open('isolated-vocal.wav', 'rb') as audio_file:
+        audio_file_blob = bucket.blob(f"artist-reference-vocals/{model_id}/isolated-vocal.wav")
+        audio_file_blob.upload_from_file(audio_file)
 
-    reference_url = reference_artist['audioStemUrl']
+    os.remove('isolated-vocal.wav')  # Remove the temporary file
 
-    task_queue.put((model_id, reference_url))
-    return jsonify({'message': "Task added to the queue. It will be processed soon.", 'referenceAudio': reference_url}), 200
+    task_queue.put((model_id, audio_file_blob.public_url))
+    return jsonify({'message': "Task added to the queue. It will be processed soon.", 'referenceAudio': audio_file_blob.public_url}), 200
 
 
 def process_inferred_audio(model_id, reference_url):
