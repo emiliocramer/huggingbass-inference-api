@@ -5,6 +5,7 @@ import tempfile
 import os
 import json
 import queue
+import base64
 from io import BytesIO
 
 from flask import Blueprint, request, jsonify
