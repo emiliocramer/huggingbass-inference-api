@@ -23,6 +23,7 @@ key_info = json.loads(key_json)
 client = storage.Client.from_service_account_info(key_info)
 bucket_name = 'opus-storage-bucket'
 bucket = client.bucket(bucket_name)
+GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
 
 
 @extraction_blueprint.route('/top-song', methods=['GET'])
@@ -166,7 +167,7 @@ def get_access_token():
 
 
 def search_youtube(query):
-    youtube = build('youtube', 'v3', developerKey='YOUR_API_KEY')
+    youtube = build('youtube', 'v3', developerKey=GOOGLE_API_KEY)
     search_response = youtube.search().list(
         q=query,
         type='video',
@@ -182,7 +183,7 @@ def search_youtube(query):
 
 
 def download_from_youtube(video_id, artist_name, track_name):
-    youtube = build('youtube', 'v3', developerKey='YOUR_API_KEY')
+    youtube = build('youtube', 'v3', developerKey=GOOGLE_API_KEY)
     yt_request = youtube.videos().list(
         part='snippet',
         id=video_id
