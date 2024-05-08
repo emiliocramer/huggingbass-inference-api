@@ -39,9 +39,6 @@ def process_comparison(inferred_audio_urls, reference_audio_url, model_id):
     print("loading reference audio")
     response = requests.get(reference_audio_url)
     reference_audio, _ = librosa.load(io.BytesIO(response.content), sr=22050)
-    # Compute the Mel spectrogram of the reference audio
-    print("getting it's mel spectrogram")
-    reference_mel_spec = librosa.feature.melspectrogram(y=reference_audio, sr=22050)
 
     similarity_scores = []
     for inferred_audio_url in inferred_audio_urls:
@@ -49,9 +46,23 @@ def process_comparison(inferred_audio_urls, reference_audio_url, model_id):
         print("loading inferred audio")
         response = requests.get(inferred_audio_url)
         inferred_audio, _ = librosa.load(io.BytesIO(response.content), sr=22050)
-        print("getting it's mel spectrogram")
+
+        # Ensure the audio signals have the same length
+        if len(reference_audio) < len(inferred_audio):
+            # Pad the reference audio with zeros
+            reference_audio = np.pad(reference_audio, (0, len(inferred_audio) - len(reference_audio)), 'constant')
+        elif len(reference_audio) > len(inferred_audio):
+            # Truncate the reference audio
+            reference_audio = reference_audio[:len(inferred_audio)]
+
+        # Compute the Mel spectrogram of the reference audio
+        print("getting reference mel spectrogram")
+        reference_mel_spec = librosa.feature.melspectrogram(y=reference_audio, sr=22050)
+
         # Compute the Mel spectrogram of the inferred audio
+        print("getting inferred mel spectrogram")
         inferred_mel_spec = librosa.feature.melspectrogram(y=inferred_audio, sr=22050)
+
         print("computing similarity score")
         # Compute the cosine similarity between the Mel spectrograms
         similarity_score = np.dot(reference_mel_spec.flatten(), inferred_mel_spec.flatten()) / (
