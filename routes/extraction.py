@@ -61,18 +61,9 @@ def get_top_song_mp3():
         return 'Missing modelId or referenceTrackMp3 in request body', 400
 
     model_id = data['modelId']
-    reference_track_base64 = data['referenceTrackMp3'].split(',')[1]
+    reference_track_mp3 = data['referenceTrackMp3']
 
-    # Save the base64 string to a file
-    with open('reference-audio.mp3', 'wb') as file:
-        file.write(base64.b64decode(reference_track_base64))
-
-    # Upload the file to GCP
-    with open('reference-audio.mp3', 'rb') as audio_file:
-        audio_file_blob = bucket.blob(f"reference-artist-audios/{model_id}/raw/uploaded-song.mp3")
-        audio_file_blob.upload_from_file(audio_file)
-
-    isolated_audio_url = process_split_and_upload_from_mp3(model_id, audio_file_blob.public_url)
+    isolated_audio_url = process_split_and_upload_from_mp3(model_id, reference_track_mp3)
     return jsonify({'modelId': model_id, 'isolatedAudioUrl': isolated_audio_url}), 200
 
 
