@@ -63,7 +63,7 @@ def get_top_song_mp3():
     model_id = data['modelId']
     reference_track_mp3 = data['referenceTrackMp3']
 
-    random_model_id = ObjectId()
+    random_model_id = str(ObjectId())
 
     threading.Thread(target=process_split_and_upload_from_mp3, args=(model_id, reference_track_mp3, random_model_id)).start()
     return jsonify({'modelId': model_id, 'taskIdentifier': random_model_id}), 200
