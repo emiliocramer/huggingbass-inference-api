@@ -36,8 +36,8 @@ def worker():
             task_queue.task_done()
 
 
-@inference_blueprint.route('/get-inferred-audio', methods=['POST'])
-def get_inferred_audio():
+@inference_blueprint.route('/get-inferred-audio-from-wav', methods=['POST'])
+def get_inferred_audio_wav():
     data = request.get_json()
     if 'modelId' not in data or 'isolatedVocal' not in data:
         return 'Missing modelId or isolatedVocal in request body', 400
@@ -58,6 +58,27 @@ def get_inferred_audio():
 
     task_queue.put((model_id, audio_file_blob.public_url))
     return jsonify({'message': "Task added to the queue. It will be processed soon.", 'referenceAudio': audio_file_blob.public_url}), 200
+
+
+@inference_blueprint.route('/get-inferred-audio-from-artist', methods=['POST'])
+def get_inferred_audio_artist():
+    data = request.get_json()
+    if 'modelId' not in data or 'spotifyArtistId' not in data:
+        return 'Missing modelId or spotifyArtistId in request body', 400
+
+    model_id = data['modelId']
+    artist_id = data['spotifyArtistId']
+
+    reference_artist = None
+
+    # try to get reference artist from collection until its found
+    while not reference_artist:
+        reference_artist = reference_artists_collection.find_one({'spotifyArtistId': artist_id})
+
+    reference_url = reference_artist['audioStemUrl']
+
+    task_queue.put((model_id, reference_url))
+    return jsonify({'message': "Task added to the queue. It will be processed soon.", 'referenceAudio': reference_url}), 200
 
 
 def process_inferred_audio(model_id, reference_url):
