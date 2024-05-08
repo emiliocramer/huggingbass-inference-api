@@ -114,6 +114,7 @@ def unzip_model_files(zipped_file):
         tmp_dir = tempfile.mkdtemp()
         zip_ref.extractall(tmp_dir)
         extracted_files = os.listdir(tmp_dir)
+
         print(f'extracted files: ', extracted_files)
 
         if len(extracted_files) == 1:
