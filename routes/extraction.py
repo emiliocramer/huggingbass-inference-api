@@ -64,7 +64,7 @@ def get_top_song_mp3():
     reference_track_base64 = data['referenceTrackMp3'].split(',')[1]
 
     # Save the base64 string to a file
-    with open('isolated-vocal.wav', 'wb') as file:
+    with open('reference-audio.mp3', 'wb') as file:
         file.write(base64.b64decode(reference_track_base64))
 
     # Upload the file to GCP
