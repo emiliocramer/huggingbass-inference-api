@@ -27,10 +27,10 @@ task_queue = queue.Queue()
 
 def worker():
     while True:
-        model_id, artist_id = task_queue.get()
+        model_id, reference_url = task_queue.get()
 
         try:
-            process_inferred_audio(model_id, artist_id)
+            process_inferred_audio(model_id, reference_url)
         finally:
             task_queue.task_done()
 
@@ -49,7 +49,7 @@ def get_inferred_audio():
         return 'Reference artist not found', 404
     reference_url = reference_artist['audioStemUrl']
 
-    task_queue.put((model_id, artist_id, reference_url))
+    task_queue.put((model_id, reference_url))
     return jsonify({'message': "Task added to the queue. It will be processed soon.", 'referenceAudio': reference_url}), 200
 
 
