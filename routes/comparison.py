@@ -7,7 +7,7 @@ import librosa
 from bson.objectid import ObjectId
 from flask import Blueprint, request, jsonify
 from google.cloud import storage
-from scipy.spatial.distance import euclidean
+import numpy as np
 from db import models_collection
 
 
@@ -39,7 +39,6 @@ def process_comparison(inferred_audio_urls, reference_audio_url, model_id):
     print("loading reference audio")
     response = requests.get(reference_audio_url)
     reference_audio, _ = librosa.load(io.BytesIO(response.content), sr=22050)
-
     # Compute the Mel spectrogram of the reference audio
     print("getting it's mel spectrogram")
     reference_mel_spec = librosa.feature.melspectrogram(y=reference_audio, sr=22050)
@@ -50,24 +49,19 @@ def process_comparison(inferred_audio_urls, reference_audio_url, model_id):
         print("loading inferred audio")
         response = requests.get(inferred_audio_url)
         inferred_audio, _ = librosa.load(io.BytesIO(response.content), sr=22050)
-
         print("getting it's mel spectrogram")
         # Compute the Mel spectrogram of the inferred audio
         inferred_mel_spec = librosa.feature.melspectrogram(y=inferred_audio, sr=22050)
-
-        print("computing euclidean distance")
-        # Compute the Euclidean distance between the Mel spectrograms
-        distance = euclidean(reference_mel_spec.flatten(), inferred_mel_spec.flatten())
-
-        # Normalize the distance to a similarity score between 0 and 100
-        similarity_score = 100 * (1 / (1 + distance))
+        print("computing similarity score")
+        # Compute the cosine similarity between the Mel spectrograms
+        similarity_score = np.dot(reference_mel_spec.flatten(), inferred_mel_spec.flatten()) / (
+            np.linalg.norm(reference_mel_spec.flatten()) * np.linalg.norm(inferred_mel_spec.flatten())
+        )
         similarity_scores.append(similarity_score)
 
     print(similarity_scores)
     print(max(similarity_scores))
-
     model = models_collection.find_one({'_id': ObjectId(model_id)})
-    model['qualityScore'] = max(similarity_scores)
+    model['qualityScore'] = max(similarity_scores) * 100  # Multiply by 100 to get a percentage
     models_collection.update_one({'_id': ObjectId(model_id)}, {'$set': model})
-
-    return max(similarity_scores)
+    return max(similarity_scores) * 100  # Return the maximum similarity score as a percentage
