@@ -194,11 +194,10 @@ def download_from_youtube(video_id, artist_name):
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.download(f'https://www.youtube.com/watch?v={video_id}')
-        print(f"Downloaded YouTube video as: {info}")
+    print("ydl", ydl)
 
-    blob_name = f"reference-artist-audios/{artist_name}/raw/youtube-track.mp3"
-    blob = bucket.blob(blob_name)
-    blob.upload_from_filename(downloaded_filename)
+    with open('track-name.mp3', 'rb') as audio_file:
+        source1_blob = bucket.blob(f"reference-artist-audios/{artist_name}/youtube/youtube-song.mp3")
+        source1_blob.upload_from_file(audio_file)
 
-    blob.make_public()
-    return blob.public_url
+    return audio_file.public_url
