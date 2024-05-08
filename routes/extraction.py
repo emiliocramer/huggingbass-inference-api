@@ -1,15 +1,15 @@
 import os
-import io
 import requests
 import base64
 import json
 import threading
+import yt_dlp
+
 
 from flask import Blueprint, request, jsonify
 from db import reference_artists_collection
 from google.cloud import storage
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseDownload
 
 from gradio_client import Client, file
 
@@ -181,17 +181,24 @@ def search_youtube(query):
         return None
 
 
-def download_from_youtube(video_id, artist_name, track_name):
-    youtube = build('youtube', 'v3', developerKey=GOOGLE_API_KEY)
-    yt_request = youtube.videos().list(
-        part='snippet',
-        id=video_id
-    )
-    response = yt_request.execute()
-    video_title = response['items'][0]['snippet']['title']
+def download_from_youtube(video_id, artist_name):
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': 'track-name.%(ext)s',
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192'
+        }]
+    }
 
-    url = f"https://www.youtube.com/watch?v={video_id}"
-    response = requests.get(url, stream=True)
-    print(url)
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=True)
 
-    return url
+    blob_name = f"reference-artist-audios/{artist_name}/raw/youtube-track.mp3"
+    blob = bucket.blob(blob_name)
+    blob.upload_from_filename('youtube-track.mp3')
+    os.remove('youtube-track.mp3')
+
+    blob.make_public()
+    return blob.public_url
