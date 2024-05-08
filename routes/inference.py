@@ -35,16 +35,8 @@ def worker():
             task_queue.task_done()
 
 
-@inference_blueprint.route('/get-inferred-audio', methods=['POST', 'OPTIONS'])
+@inference_blueprint.route('/get-inferred-audio', methods=['POST'])
 def get_inferred_audio():
-    if request.method == 'OPTIONS':
-        headers = {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type'
-        }
-        return '', 204, headers
-
     data = request.get_json()
     if 'modelId' not in data or 'spotifyArtistId' not in data:
         return 'Missing modelId or spotifyArtistId in request body', 400
