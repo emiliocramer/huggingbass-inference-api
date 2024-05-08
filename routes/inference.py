@@ -109,10 +109,12 @@ def process_inferred_audio(model_id, reference_url):
 def unzip_model_files(zipped_file):
     pth_file_url = None
     index_file_url = None
+    print(f'zipped file: ', zipped_file)
     with zipfile.ZipFile(zipped_file, 'r') as zip_ref:
         tmp_dir = tempfile.mkdtemp()
         zip_ref.extractall(tmp_dir)
         extracted_files = os.listdir(tmp_dir)
+        print(f'extracted files: ', extracted_files)
 
         if len(extracted_files) == 1:
             extracted_folder = os.path.join(tmp_dir, extracted_files[0])
