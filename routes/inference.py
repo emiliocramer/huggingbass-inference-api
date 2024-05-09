@@ -5,8 +5,8 @@ import tempfile
 import os
 import json
 import queue
-import base64
 from io import BytesIO
+from concurrent.futures import ThreadPoolExecutor
 
 from flask import Blueprint, request, jsonify
 from db import models_collection, reference_artists_collection
@@ -24,13 +24,17 @@ bucket_name = 'opus-storage-bucket'
 bucket = client.bucket(bucket_name)
 
 task_queue = queue.Queue()
+MAX_WORKER_THREADS = 6
+executor = ThreadPoolExecutor(max_workers=MAX_WORKER_THREADS)
 
 
 def worker():
     while True:
         model_id, reference_url = task_queue.get()
         try:
-            process_inferred_audio(model_id, reference_url)
+            executor.submit(process_inferred_audio, model_id, reference_url)
+        except Exception as e:
+            print(f"Error submitting task: {e}")
         finally:
             task_queue.task_done()
 
@@ -70,7 +74,6 @@ def get_inferred_audio_artist():
 
 
 def process_inferred_audio(model_id, reference_url):
-
     model = models_collection.find_one({'_id': ObjectId(model_id)})
     if not model:
         return 'Model not found', 404
