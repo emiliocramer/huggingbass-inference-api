@@ -83,11 +83,9 @@ def process_inferred_audio(model_id, reference_url):
     pth_file_url = None
     index_file_url = None
 
-    print('model file urls: ', model['fileUrls'])
     # Unzip the model file at index 1
     if len(model['fileUrls']) == 1:
         zipped_file_url = model['fileUrls'][0]
-        print("zipped file url: ", zipped_file_url)
 
         zipped_file_bytes = requests.get(zipped_file_url).content
         zipped_file = BytesIO(zipped_file_bytes)
@@ -112,17 +110,13 @@ def process_inferred_audio(model_id, reference_url):
 def unzip_model_files(zipped_file):
     pth_file_url = None
     index_file_url = None
-    print(f'zipped file: ', zipped_file)
     with zipfile.ZipFile(zipped_file, 'r') as zip_ref:
         tmp_dir = tempfile.mkdtemp()
         zip_ref.extractall(tmp_dir)
         extracted_files = os.listdir(tmp_dir)
 
-        print(f'extracted files: ', extracted_files)
-
         if len(extracted_files) == 1:
             extracted_folder = os.path.join(tmp_dir, extracted_files[0])
-            print("Extracted folder:", extracted_folder)
 
             for file_name in os.listdir(extracted_folder):
                 file_path = os.path.join(extracted_folder, file_name)
@@ -138,8 +132,6 @@ def unzip_model_files(zipped_file):
                 elif file_name.endswith(".index"):
                     index_file_url = file_path
 
-        print("pth file url:", pth_file_url)
-        print("index file url:", index_file_url)
 
     if not pth_file_url or not index_file_url:
         return 'Model file not found', 404
@@ -148,9 +140,7 @@ def unzip_model_files(zipped_file):
 
 
 def infer_audio(pth_file_url, index_file_url, reference_url, pitch, model_name):
-    print("pth file url: ", pth_file_url)
-    print("index file url: ", index_file_url)
-    print("inferring pitch: ", pitch)
+    print(f'inferring pitch: {pitch} for {model_name}')
     hb_client = Client("mealss/rvc_zero")
 
     result = hb_client.predict(
@@ -166,10 +156,9 @@ def infer_audio(pth_file_url, index_file_url, reference_url, pitch, model_name):
         api_name="/run"
     )
 
-    print("Result:", result)
     if "error" in result:
         raise ValueError(result["error"])
-    print("finished inferring pitch: ", pitch)
+    print(f'finished inferring pitch: {pitch} for {model_name}')
     audio_url = result[0]
 
     with open(audio_url, 'rb') as audio_file:
