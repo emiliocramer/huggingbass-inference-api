@@ -29,7 +29,6 @@ task_queue = queue.Queue()
 def worker():
     while True:
         model_id, reference_url = task_queue.get()
-
         try:
             process_inferred_audio(model_id, reference_url)
         finally:
