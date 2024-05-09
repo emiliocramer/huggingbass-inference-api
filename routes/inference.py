@@ -44,6 +44,7 @@ def get_inferred_audio_wav():
 
     model_id = data['modelId']
     isolated_vocal_url = data['isolatedVocalUrl']
+
     task_queue.put((model_id, isolated_vocal_url))
     return jsonify({'message': "Task added to the queue. It will be processed soon."}), 200
 
