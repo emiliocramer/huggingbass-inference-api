@@ -163,7 +163,6 @@ def infer_audio(pth_file_url, index_file_url, reference_url, pitch, model_name):
         api_name="/run"
     )
     print("Result:", result)
-
     if "error" in result:
         raise ValueError(result["error"])
     print("finished inferring pitch: ", pitch)
