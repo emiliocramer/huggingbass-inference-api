@@ -5,7 +5,7 @@ from routes.inference import inference_blueprint
 from routes.comparison import comparison_blueprint
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})  # Allow requests from any origin
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Register blueprints
 app.register_blueprint(extraction_blueprint)

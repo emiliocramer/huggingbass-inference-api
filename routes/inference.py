@@ -24,7 +24,7 @@ bucket_name = 'opus-storage-bucket'
 bucket = client.bucket(bucket_name)
 
 task_queue = queue.Queue()
-MAX_WORKER_THREADS = 6
+MAX_WORKER_THREADS = 50
 executor = ThreadPoolExecutor(max_workers=MAX_WORKER_THREADS)
 
 
