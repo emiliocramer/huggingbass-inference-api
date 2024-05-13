@@ -81,26 +81,17 @@ def process_inferred_audio(model_id, reference_url):
 
     print("found model: ", model['name'])
 
-    pth_file_url = None
-    index_file_url = None
+    zipped_file_url = model['fileUrls'][0]
+    zipped_file_response = requests.get(zipped_file_url)
+    with zipped_file_response:
+        zipped_file_bytes = zipped_file_response.content
+        zipped_file = BytesIO(zipped_file_bytes)
+        with zipfile.ZipFile(zipped_file, 'r') as zip_ref:
+            pth_file_url, index_file_url = unzip_model_files(zip_ref)
 
-    # Unzip the model file at index 1
-    if len(model['fileUrls']) == 1:
-        zipped_file_url = model['fileUrls'][0]
-
-        zipped_file_response = requests.get(zipped_file_url)
-        with zipped_file_response:  # Use context manager for the response
-            zipped_file_bytes = zipped_file_response.content
-            zipped_file = BytesIO(zipped_file_bytes)
-            with zipfile.ZipFile(zipped_file, 'r') as zip_ref:  # Use context manager for ZipFile
-                pth_file_url, index_file_url = unzip_model_files(zip_ref)
-
-    else:
-        for file_name in model['fileUrls']:
-            if file_name.endswith(".pth"):
-                pth_file_url = file_name
-            elif file_name.endswith(".index"):
-                index_file_url = file_name
+    print("unzipped model files")
+    print(f'pth_file_url: {pth_file_url}')
+    print(f'index_file_url: {index_file_url}')
 
     inferred_audios = []
     for i in range(-12, 13):
@@ -148,35 +139,20 @@ def infer_audio(pth_file_url, index_file_url, reference_url, pitch, model_name):
 def unzip_model_files(zip_ref):
     pth_file_url = None
     index_file_url = None
-    tmp_dir = tempfile.mkdtemp()
-    try:
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
         zip_ref.extractall(tmp_dir)
-        extracted_files = os.listdir(tmp_dir)
 
-        if len(extracted_files) == 1:
-            extracted_folder = os.path.join(tmp_dir, extracted_files[0])
-
-            for file_name in os.listdir(extracted_folder):
-                file_path = os.path.join(extracted_folder, file_name)
+        for root, dirs, files in os.walk(tmp_dir):
+            for file_name in files:
+                file_path = os.path.join(root, file_name)
                 if file_name.endswith(".pth"):
                     pth_file_url = file_path
                 elif file_name.endswith(".index"):
                     index_file_url = file_path
-        else:
-            for file_name in extracted_files:
-                file_path = os.path.join(tmp_dir, file_name)
-                if file_name.endswith(".pth"):
-                    pth_file_url = file_path
-                elif file_name.endswith(".index"):
-                    index_file_url = file_path
-    finally:
-        # Clear the temporary directory
-        for root, dirs, files in os.walk(tmp_dir, topdown=False):
-            for name in files:
-                os.remove(os.path.join(root, name))
-            for name in dirs:
-                os.rmdir(os.path.join(root, name))
-        os.rmdir(tmp_dir)
+
+                if pth_file_url and index_file_url:
+                    break
 
     if not pth_file_url or not index_file_url:
         return 'Model file not found', 404
