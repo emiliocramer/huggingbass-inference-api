@@ -93,10 +93,7 @@ def process_inferred_audio(model_id, reference_url):
     print(f'pth_file_url: {pth_file_url}')
     print(f'index_file_url: {index_file_url}')
 
-    inferred_audios = []
-    for i in range(-12, 13):
-        inferred_audio = infer_audio(pth_file_url, index_file_url, reference_url, i, model['name'])
-        inferred_audios.append(inferred_audio)
+    inferred_audios = infer_audio(pth_file_url, index_file_url, reference_url, model['name'])
 
     model['inferredAudioUrls'] = inferred_audios
     models_collection.update_one({'_id': ObjectId(model_id)}, {'$set': model})
@@ -107,33 +104,37 @@ def process_inferred_audio(model_id, reference_url):
     inferred_audios = None
 
 
-def infer_audio(pth_file_url, index_file_url, reference_url, pitch, model_name):
-    print(f'inferring pitch: {pitch} for {model_name}')
+def infer_audio(pth_file_url, index_file_url, reference_url, model_name):
+    print(f'inferring pitch: {i} for {model_name}')
     hb_client = Client("mealss/rvc_zero")
 
-    result = hb_client.predict(
-        audio_files=file(reference_url, "audio.wav"),
-        file_m=file(pth_file_url, "model.pth"),
-        pitch_alg="rmvpe+",
-        pitch_lvl=pitch,
-        file_index=file(index_file_url, "index.index"),
-        index_inf=0.75,
-        r_m_f=3,
-        e_r=0.25,
-        c_b_p=0.5,
-        api_name="/run"
-    )
+    public_urls = []
+    for i in range(-12, 13):
+        result = hb_client.predict(
+            audio_files=[reference_url],
+            file_m=pth_file_url,
+            pitch_alg="rmvpe+",
+            pitch_lvl=pitch,
+            file_index=index_file_url,
+            index_inf=0.75,
+            r_m_f=3,
+            e_r=0.25,
+            c_b_p=0.5,
+            api_name="/run"
+        )
 
-    if "error" in result:
-        raise ValueError(result["error"])
-    print(f'finished inferring pitch: {pitch} for {model_name}')
-    audio_url = result[0]
+        if "error" in result:
+            raise ValueError(result["error"])
+        print(f'finished inferring pitch: {i} for {model_name}')
+        audio_url = result[0]
 
-    with open(audio_url, 'rb') as audio_file:
-        audio_file_blob = bucket.blob(f"model-inferred-audios/{model_name}/pitch{pitch}-vocal.wav")
-        audio_file_blob.upload_from_file(audio_file)
+        with open(audio_url, 'rb') as audio_file:
+            audio_file_blob = bucket.blob(f"model-inferred-audios/{model_name}/pitch{i}-vocal.wav")
+            audio_file_blob.upload_from_file(audio_file)
 
-    return audio_file_blob.public_url
+        public_urls.append(audio_file_blob.public_url)
+
+    return public_urls
 
 
 def unzip_model_files(zip_ref):
