@@ -17,6 +17,7 @@ filelock==3.14.0
 firebase-admin==6.5.0
 Flask==3.0.3
 Flask-Cors==4.0.1
+ffmpeg-python
 fsspec==2024.3.1
 google-api-core==2.19.0
 google-api-python-client==2.128.0

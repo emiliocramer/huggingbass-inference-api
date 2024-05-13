@@ -5,6 +5,7 @@ import tempfile
 import os
 import json
 import queue
+import librosa
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor
 
@@ -99,12 +100,32 @@ def process_inferred_audio(model_id, reference_url):
                 index_file_url = file_name
 
     inferred_audios = []
-    for i in range(-12, 13):
+    print("getting pitch range")
+    min_pitch, max_pitch = get_pitch_range(reference_url)
+    for i in range(min_pitch, max_pitch + 1):
         inferred_audio = infer_audio(pth_file_url, index_file_url, reference_url, i, model['name'])
         inferred_audios.append(inferred_audio)
 
     model['inferredAudioUrls'] = inferred_audios
     models_collection.update_one({'_id': ObjectId(model_id)}, {'$set': model})
+
+
+def get_pitch_range(reference_url):
+    response = requests.get(reference_url)
+    audio_data = BytesIO(response.content)
+
+    y, sr = librosa.load(audio_data, res_type='kaiser_fast')
+    pitch_freqs, _ = librosa.piptrack(y=y, sr=sr)
+    pitch_freqs = [f for f in pitch_freqs if f > 0]
+
+    if pitch_freqs:
+        min_pitch = librosa.hz_to_midi(min(pitch_freqs))
+        max_pitch = librosa.hz_to_midi(max(pitch_freqs))
+    else:
+        min_pitch, max_pitch = -12, 12
+
+    print(f'pitch range: {min_pitch} to {max_pitch}')
+    return int(min_pitch), int(max_pitch)
 
 
 def unzip_model_files(zipped_file):
