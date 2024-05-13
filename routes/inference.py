@@ -88,9 +88,12 @@ def process_inferred_audio(model_id, reference_url):
     if len(model['fileUrls']) == 1:
         zipped_file_url = model['fileUrls'][0]
 
-        zipped_file_bytes = requests.get(zipped_file_url).content
-        zipped_file = BytesIO(zipped_file_bytes)
-        pth_file_url, index_file_url = unzip_model_files(zipped_file)
+        zipped_file_response = requests.get(zipped_file_url)
+        with zipped_file_response:  # Use context manager for the response
+            zipped_file_bytes = zipped_file_response.content
+            zipped_file = BytesIO(zipped_file_bytes)
+            with zipfile.ZipFile(zipped_file, 'r') as zip_ref:  # Use context manager for ZipFile
+                pth_file_url, index_file_url = unzip_model_files(zip_ref)
 
     else:
         for file_name in model['fileUrls']:
@@ -107,37 +110,10 @@ def process_inferred_audio(model_id, reference_url):
     model['inferredAudioUrls'] = inferred_audios
     models_collection.update_one({'_id': ObjectId(model_id)}, {'$set': model})
 
-
-def unzip_model_files(zipped_file):
+    # Clear variables
     pth_file_url = None
     index_file_url = None
-    with zipfile.ZipFile(zipped_file, 'r') as zip_ref:
-        tmp_dir = tempfile.mkdtemp()
-        zip_ref.extractall(tmp_dir)
-        extracted_files = os.listdir(tmp_dir)
-
-        if len(extracted_files) == 1:
-            extracted_folder = os.path.join(tmp_dir, extracted_files[0])
-
-            for file_name in os.listdir(extracted_folder):
-                file_path = os.path.join(extracted_folder, file_name)
-                if file_name.endswith(".pth"):
-                    pth_file_url = file_path
-                elif file_name.endswith(".index"):
-                    index_file_url = file_path
-        else:
-            for file_name in extracted_files:
-                file_path = os.path.join(tmp_dir, file_name)
-                if file_name.endswith(".pth"):
-                    pth_file_url = file_path
-                elif file_name.endswith(".index"):
-                    index_file_url = file_path
-
-
-    if not pth_file_url or not index_file_url:
-        return 'Model file not found', 404
-
-    return pth_file_url, index_file_url
+    inferred_audios = None
 
 
 def infer_audio(pth_file_url, index_file_url, reference_url, pitch, model_name):
@@ -167,6 +143,45 @@ def infer_audio(pth_file_url, index_file_url, reference_url, pitch, model_name):
         audio_file_blob.upload_from_file(audio_file)
 
     return audio_file_blob.public_url
+
+
+def unzip_model_files(zip_ref):
+    pth_file_url = None
+    index_file_url = None
+    tmp_dir = tempfile.mkdtemp()
+    try:
+        zip_ref.extractall(tmp_dir)
+        extracted_files = os.listdir(tmp_dir)
+
+        if len(extracted_files) == 1:
+            extracted_folder = os.path.join(tmp_dir, extracted_files[0])
+
+            for file_name in os.listdir(extracted_folder):
+                file_path = os.path.join(extracted_folder, file_name)
+                if file_name.endswith(".pth"):
+                    pth_file_url = file_path
+                elif file_name.endswith(".index"):
+                    index_file_url = file_path
+        else:
+            for file_name in extracted_files:
+                file_path = os.path.join(tmp_dir, file_name)
+                if file_name.endswith(".pth"):
+                    pth_file_url = file_path
+                elif file_name.endswith(".index"):
+                    index_file_url = file_path
+    finally:
+        # Clear the temporary directory
+        for root, dirs, files in os.walk(tmp_dir, topdown=False):
+            for name in files:
+                os.remove(os.path.join(root, name))
+            for name in dirs:
+                os.rmdir(os.path.join(root, name))
+        os.rmdir(tmp_dir)
+
+    if not pth_file_url or not index_file_url:
+        return 'Model file not found', 404
+
+    return pth_file_url, index_file_url
 
 
 worker_thread = threading.Thread(target=worker, daemon=True)
