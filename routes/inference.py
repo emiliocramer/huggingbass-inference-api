@@ -112,11 +112,11 @@ def infer_audio(pth_file_url, index_file_url, reference_url, pitch, model_name):
     hb_client = Client("mealss/rvc_zero")
 
     result = hb_client.predict(
-        audio_files=[file(reference_url)],
-        file_m=pth_file_url,
+        audio_files=[file({"data": [reference_url], "name": ["audio.wav"]})],
+        file_m=file(pth_file_url),
         pitch_alg="rmvpe+",
         pitch_lvl=pitch,
-        file_index=index_file_url,
+        file_index=file(index_file_url),
         index_inf=0.75,
         r_m_f=3,
         e_r=0.25,
