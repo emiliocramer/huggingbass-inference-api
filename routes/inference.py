@@ -105,16 +105,16 @@ def process_inferred_audio(model_id, reference_url):
 
 
 def infer_audio(pth_file_url, index_file_url, reference_url, model_name):
-    print(f'inferring pitch: {i} for {model_name}')
     hb_client = Client("mealss/rvc_zero")
 
     public_urls = []
     for i in range(-12, 13):
+        print(f'inferring pitch: {i} for {model_name}')
         result = hb_client.predict(
             audio_files=[reference_url],
             file_m=pth_file_url,
             pitch_alg="rmvpe+",
-            pitch_lvl=pitch,
+            pitch_lvl=i,
             file_index=index_file_url,
             index_inf=0.75,
             r_m_f=3,
