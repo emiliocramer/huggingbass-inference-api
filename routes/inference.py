@@ -161,7 +161,6 @@ def unzip_model_files(zip_ref, model_id):
                         index_file_blob = bucket.blob(f"model-files/{model_id}/{file_name}")
                         index_file_blob.upload_from_file(index_file)
                         index_file_public_url = index_file_blob.public_url
-
                 if pth_file_url and index_file_url:
                     break
 
