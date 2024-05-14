@@ -87,7 +87,7 @@ def process_inferred_audio(model_id, reference_url):
         zipped_file_bytes = zipped_file_response.content
         zipped_file = BytesIO(zipped_file_bytes)
         with zipfile.ZipFile(zipped_file, 'r') as zip_ref:
-            pth_file_url, index_file_url = unzip_model_files(zip_ref)
+            pth_file_url, index_file_url = unzip_model_files(zip_ref, model_id)
 
     print("unzipped model files")
     print(f'pth_file_url: {pth_file_url}')
@@ -111,7 +111,7 @@ def infer_audio(pth_file_url, index_file_url, reference_url, model_name):
     for i in range(-12, 13):
         print(f'inferring pitch: {i} for {model_name}')
         result = hb_client.predict(
-            audio_files=[reference_url],
+            audio_files=[file(reference_url)],
             file_m=pth_file_url,
             pitch_alg="rmvpe+",
             pitch_lvl=i,
@@ -137,9 +137,11 @@ def infer_audio(pth_file_url, index_file_url, reference_url, model_name):
     return public_urls
 
 
-def unzip_model_files(zip_ref):
+def unzip_model_files(zip_ref, model_id):
     pth_file_url = None
     index_file_url = None
+    pth_file_public_url = None
+    index_file_public_url = None
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         zip_ref.extractall(tmp_dir)
@@ -149,8 +151,16 @@ def unzip_model_files(zip_ref):
                 file_path = os.path.join(root, file_name)
                 if file_name.endswith(".pth"):
                     pth_file_url = file_path
+                    with open(pth_file_url, 'rb') as pth_file:
+                        pth_file_blob = bucket.blob(f"model-files/{model_id}/{file_name}")
+                        pth_file_blob.upload_from_file(pth_file)
+                        pth_file_public_url = pth_file_blob.public_url
                 elif file_name.endswith(".index"):
                     index_file_url = file_path
+                    with open(index_file_url, 'rb') as index_file:
+                        index_file_blob = bucket.blob(f"model-files/{model_id}/{file_name}")
+                        index_file_blob.upload_from_file(index_file)
+                        index_file_public_url = index_file_blob.public_url
 
                 if pth_file_url and index_file_url:
                     break
@@ -158,7 +168,7 @@ def unzip_model_files(zip_ref):
     if not pth_file_url or not index_file_url:
         return 'Model file not found', 404
 
-    return pth_file_url, index_file_url
+    return pth_file_public_url, index_file_public_url
 
 
 worker_thread = threading.Thread(target=worker, daemon=True)
