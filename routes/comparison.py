@@ -16,7 +16,7 @@ comparison_blueprint = Blueprint('comparison', __name__)
 key_json = os.environ.get('GOOGLE_CLOUD_KEY_JSON')
 key_info = json.loads(key_json)
 client = storage.Client.from_service_account_info(key_info)
-bucket_name = 'opus-storage-bucket'
+bucket_name = 'huggingbass-bucket'
 bucket = client.bucket(bucket_name)
 
 
