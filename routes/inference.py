@@ -5,7 +5,6 @@ import tempfile
 import os
 import json
 import queue
-import librosa
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor
 
@@ -148,6 +147,8 @@ def unzip_model_files(zip_ref, model_id):
 
         for root, dirs, files in os.walk(tmp_dir):
             for file_name in files:
+                if file_name.startswith('.'):
+                    continue
                 file_path = os.path.join(root, file_name)
                 if file_name.endswith(".pth"):
                     pth_file_url = file_path
