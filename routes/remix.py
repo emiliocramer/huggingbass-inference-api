@@ -56,15 +56,23 @@ def process_split_and_upload_from_mp3():
         return jsonify({'error': 'Missing trackUrl or trackId'}), 400
 
     hb_client = Client("r3gm/Audio_separator")
-    split_result = hb_client.predict(
+    vocal_split_result = hb_client.predict(
         media_file=file(track_url),
-        stem=["vocal", "background"],
+        stem="vocal",
         main=False,
         dereverb=False,
         api_name="/sound_separate"
     )
-    voice_stem_path = split_result[0]
-    background_stem_path = split_result[1]
+    voice_stem_path = vocal_split_result[0]
+
+    background_split_result = hb_client.predict(
+        media_file=file(track_url),
+        stem="vocal",
+        main=False,
+        dereverb=False,
+        api_name="/sound_separate"
+    )
+    background_stem_path = background_split_result[0]
 
     with open(voice_stem_path, 'rb') as source1_file:
         voice_file_blob = bucket.blob(f"remix-seperated-files/{track_id}/vocal.wav")
