@@ -78,7 +78,7 @@ def remix_audio(model_id, reference_url):
     # Clear variables
     pth_file_url = None
     index_file_url = None
-    inferred_audios = None
+    inferred_audio_url = None
 
     return jsonify({'inferredAudioUrl': inferred_audio_url}), 200
 
