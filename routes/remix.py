@@ -172,6 +172,7 @@ def infer_audio(pth_file_url, index_file_url, reference_url, model_name, song_id
         silence_thresh=silence_thresh,
         keep_silence=True
     )
+    print(f'found {len(chunks)} chunks')
 
     inferred_chunks = []
     for i, chunk in enumerate(chunks):
@@ -181,7 +182,8 @@ def infer_audio(pth_file_url, index_file_url, reference_url, model_name, song_id
         os.makedirs(input_folder, exist_ok=True)
         chunk.export(chunk_path, format="wav")
         chunkPitch = detect_pitch(chunk_path)
-        chunkPitch = round(chunkPitch)
+        chunkPitch = float(chunkPitch)
+        print(f'chunk {i} pitch: {chunkPitch}')
 
         print(f'inferring chunk {i}: for {model_name}')
         result = hb_client.predict(
