@@ -55,7 +55,7 @@ def process_split_and_upload_from_mp3():
     if not track_url or not track_id:
         return jsonify({'error': 'Missing trackUrl or trackId'}), 400
 
-    hb_client = Client("r3gm/Audio_separator")
+    hb_client = Client("mealss/Audio_separator")
     vocal_split_result = hb_client.predict(
         media_file=file(track_url),
         stem="vocal",

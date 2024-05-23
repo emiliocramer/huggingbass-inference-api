@@ -131,7 +131,7 @@ def get_top_track(headers, artist_id, artist_name):
 
 
 def process_split_and_upload(artist_name, artist_id, top_track, preview_response):
-    hb_client = Client("r3gm/Audio_separator")
+    hb_client = Client("mealss/Audio_separator")
 
     rawblob = bucket.blob(f"reference-artist-audios/{artist_name}/raw/{top_track['name']}.mp3")
     rawblob.upload_from_string(preview_response.content)
@@ -159,7 +159,7 @@ def process_split_and_upload(artist_name, artist_id, top_track, preview_response
 
 
 def process_split_and_upload_from_mp3(model_id, top_track, random_model_id):
-    hb_client = Client("r3gm/Audio_separator")
+    hb_client = Client("mealss/Audio_separator")
 
     split_result = hb_client.predict(
         media_file=file(top_track),
