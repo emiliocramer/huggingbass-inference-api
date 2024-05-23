@@ -125,6 +125,7 @@ def infer_audio(pth_file_url, index_file_url, reference_url, model_name):
     hb_client = Client("mealss/rvc_zero")
 
     pitch = detect_pitch(reference_url)
+    pitch = round(pitch)
     print(f'inferring for remix: for {model_name}')
     result = hb_client.predict(
         audio_files=[file(reference_url)],
