@@ -165,6 +165,7 @@ def infer_audio(pth_file_url, index_file_url, reference_url, model_name, song_id
         input_folder = f"/tmp/{model_name}"
         chunk_filename = f"chunk{i}.wav"
         chunk_path = os.path.join(input_folder, chunk_filename)
+        os.makedirs(input_folder, exist_ok=True)
         chunk.export(chunk_path, format="wav")
         chunkPitch = detect_pitch(chunk_path)
         chunkPitch = round(chunkPitch)
