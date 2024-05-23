@@ -236,7 +236,10 @@ def infer_audio(pth_file_url, index_file_url, reference_url, model_name, song_id
 
 def detect_pitch(audio_path):
     y, sr = librosa.load(audio_path)
-    pitches, magnitudes = librosa.core.piptrack(y=y, sr=sr)
+    pitches, magnitudes = librosa.piptrack(y=y, sr=sr)
     pitches = pitches[magnitudes > np.median(magnitudes)]
-    pitch = np.median(pitches)
-    return pitch
+    midi_pitches = librosa.hz_to_midi(pitches)
+    median_midi_pitch = np.median(midi_pitches)
+    normalized_pitch = (median_midi_pitch - 60) / 12
+
+    return normalized_pitch
