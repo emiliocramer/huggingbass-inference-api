@@ -19,7 +19,7 @@ from bson.objectid import ObjectId
 from gradio_client import Client, file
 
 min_silence_len = 500
-silence_thresh = -40
+silence_thresh = -16
 
 
 remix_blueprint = Blueprint('remix', __name__)
@@ -68,13 +68,26 @@ def remix_audio():
 
     print("found model: ", model['name'])
 
-    zipped_file_url = model['fileUrls'][0]
-    zipped_file_response = requests.get(zipped_file_url)
-    with zipped_file_response:
-        zipped_file_bytes = zipped_file_response.content
-        zipped_file = BytesIO(zipped_file_bytes)
-        with zipfile.ZipFile(zipped_file, 'r') as zip_ref:
-            pth_file_url, index_file_url = unzip_model_files(zip_ref, model_id)
+    pth_file_url, index_file_url = None, None
+    if model['fileUrls'][0].endswith('.zip'):
+        zipped_file_url = model['fileUrls'][0]
+        zipped_file_response = requests.get(zipped_file_url)
+        with zipped_file_response:
+            zipped_file_bytes = zipped_file_response.content
+            zipped_file = BytesIO(zipped_file_bytes)
+            with zipfile.ZipFile(zipped_file, 'r') as zip_ref:
+                pth_file_url, index_file_url = unzip_model_files(zip_ref, model_id)
+    else:
+        for file_url in model['fileUrls']:
+            if file_url.endswith('.pth'):
+                pth_file_url = file_url
+            elif file_url.endswith('.index'):
+                index_file_url = file_url
+
+            if pth_file_url and index_file_url:
+                break
+    if not pth_file_url or not index_file_url:
+        return jsonify({'error': 'Unable to find required model files (.pth and .index)'}), 400
 
     print("unzipped model files")
     print(f'pth_file_url: {pth_file_url}')
