@@ -162,12 +162,16 @@ def infer_audio(pth_file_url, index_file_url, reference_url, model_name, song_id
 
     inferred_chunks = []
     for i, chunk in enumerate(chunks):
-        chunkPitch = detect_pitch(chunk)
+        input_folder = f"/tmp/{model_name}"
+        chunk_filename = f"chunk{i}.wav"
+        chunk_path = os.path.join(input_folder, chunk_filename)
+        chunk.export(chunk_path, format="wav")
+        chunkPitch = detect_pitch(chunk_path)
         chunkPitch = round(chunkPitch)
 
         print(f'inferring chunk {i}: for {model_name}')
         result = hb_client.predict(
-            audio_files=[file(reference_url)],
+            audio_files=[file(chunk_path)],
             file_m=pth_file_url,
             pitch_alg="rmvpe+",
             pitch_lvl=chunkPitch,
