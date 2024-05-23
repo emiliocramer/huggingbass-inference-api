@@ -7,6 +7,8 @@ import json
 import queue
 import numpy as np
 from io import BytesIO
+from pydub import AudioSegment
+from pydub.silence import split_on_silence
 from concurrent.futures import ThreadPoolExecutor
 
 from flask import Blueprint, jsonify, request
@@ -15,6 +17,9 @@ from .inference import unzip_model_files
 from google.cloud import storage
 from bson.objectid import ObjectId
 from gradio_client import Client, file
+
+min_silence_len = 500
+silence_thresh = -40
 
 
 remix_blueprint = Blueprint('remix', __name__)
@@ -45,6 +50,43 @@ executor = ThreadPoolExecutor(max_workers=MAX_WORKER_THREADS)
 #     combined = sound1.overlay(sound2)
 #
 #     combined.export("/path/to/combined.wav", format='wav')
+
+
+@remix_blueprint.route('/remix', methods=['POST'])
+def remix_audio():
+    data = request.get_json()
+    model_id = data.get('modelId')
+    reference_url = data.get('referenceUrl')
+    song_id = data.get('songId')
+
+    if not model_id or not reference_url:
+        return jsonify({'error': 'Missing modelId or referenceUrl'}), 400
+
+    model = models_collection.find_one({'_id': ObjectId(model_id)})
+    if not model:
+        return 'Model not found', 404
+
+    print("found model: ", model['name'])
+
+    zipped_file_url = model['fileUrls'][0]
+    zipped_file_response = requests.get(zipped_file_url)
+    with zipped_file_response:
+        zipped_file_bytes = zipped_file_response.content
+        zipped_file = BytesIO(zipped_file_bytes)
+        with zipfile.ZipFile(zipped_file, 'r') as zip_ref:
+            pth_file_url, index_file_url = unzip_model_files(zip_ref, model_id)
+
+    print("unzipped model files")
+    print(f'pth_file_url: {pth_file_url}')
+    print(f'index_file_url: {index_file_url}')
+
+    inferred_audio_url = infer_audio(pth_file_url, index_file_url, reference_url, model['name'], song_id)
+
+    # Clear variables
+    pth_file_url = None
+    index_file_url = None
+    return jsonify({'inferredAudioUrl': inferred_audio_url}), 200
+
 
 @remix_blueprint.route('/split-for-remix', methods=['POST'])
 def process_split_and_upload_from_mp3():
@@ -82,22 +124,9 @@ def process_split_and_upload_from_mp3():
         background_file_blob = bucket.blob(f"remix-seperated-files/{track_id}/background.wav")
         background_file_blob.upload_from_file(source2_file)
 
-    # isolate primary
-    primary_vocal_split_result = hb_client.predict(
-        media_file=file(all_voice_file_blob.public_url),
-        stem="vocal",
-        main=False,
-        dereverb=False,
-        api_name="/sound_separate"
-    )
-    primary_voice_stem_path = primary_vocal_split_result[0]
-    with open(primary_voice_stem_path, 'rb') as source1_file:
-        primary_voice_file_blob = bucket.blob(f"remix-seperated-files/{track_id}/primary-vocal.wav")
-        primary_voice_file_blob.upload_from_file(source1_file)
-
     # deverb primary
     deverb_vocal_split_result = hb_client.predict(
-        media_file=file(primary_voice_file_blob.public_url),
+        media_file=file(all_voice_file_blob.public_url),
         stem="vocal",
         main=False,
         dereverb=True,
@@ -111,85 +140,65 @@ def process_split_and_upload_from_mp3():
     return jsonify({'vocal': deverb_voice_file_blob.public_url, 'background': background_file_blob.public_url}), 200
 
 
-@remix_blueprint.route('/remix', methods=['POST'])
-def remix_audio():
-    data = request.get_json()
-    model_id = data.get('modelId')
-    reference_url = data.get('referenceUrl')
-
-    if not model_id or not reference_url:
-        return jsonify({'error': 'Missing modelId or referenceUrl'}), 400
-
-    model = models_collection.find_one({'_id': ObjectId(model_id)})
-    if not model:
-        return 'Model not found', 404
-
-    print("found model: ", model['name'])
-
-    zipped_file_url = model['fileUrls'][0]
-    zipped_file_response = requests.get(zipped_file_url)
-    with zipped_file_response:
-        zipped_file_bytes = zipped_file_response.content
-        zipped_file = BytesIO(zipped_file_bytes)
-        with zipfile.ZipFile(zipped_file, 'r') as zip_ref:
-            pth_file_url, index_file_url = unzip_model_files(zip_ref, model_id)
-
-    print("unzipped model files")
-    print(f'pth_file_url: {pth_file_url}')
-    print(f'index_file_url: {index_file_url}')
-
-    inferred_audio_url = infer_audio(pth_file_url, index_file_url, reference_url, model['name'])
-
-    # Clear variables
-    pth_file_url = None
-    index_file_url = None
-    return jsonify({'inferredAudioUrl': inferred_audio_url}), 200
-
-
-def infer_audio(pth_file_url, index_file_url, reference_url, model_name):
+def infer_audio(pth_file_url, index_file_url, reference_url, model_name, song_id):
     hb_client = Client("mealss/rvc_zero")
 
-    pitch = detect_pitch(reference_url)
-    pitch = round(pitch)
-    print(f'inferring for remix: for {model_name}')
-    result = hb_client.predict(
-        audio_files=[file(reference_url)],
-        file_m=pth_file_url,
-        pitch_alg="rmvpe+",
-        pitch_lvl=pitch,
-        file_index=index_file_url,
-        index_inf=0.75,
-        r_m_f=3,
-        e_r=0.25,
-        c_b_p=0.5,
-        api_name="/run"
-    )
-    if "error" in result:
-        raise ValueError(result["error"])
-    print(f'finished inferring for {model_name}')
-    audio_url = result[0]
+    # Download the reference audio
+    response = requests.get(reference_url)
+    response.raise_for_status()
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        temp_file.write(response.content)
+        temp_reference_file_path = temp_file.name
 
-    with open(audio_url, 'rb') as audio_file:
+    # Load the audio file
+    audio = AudioSegment.from_wav(temp_reference_file_path)
+    # Split the audio based on silence
+    chunks = split_on_silence(
+        audio,
+        min_silence_len=min_silence_len,
+        silence_thresh=silence_thresh,
+        keep_silence=True
+    )
+
+    inferred_chunks = []
+    for i, chunk in enumerate(chunks):
+        chunkPitch = detect_pitch(chunk)
+        chunkPitch = round(chunkPitch)
+
+        print(f'inferring chunk {i}: for {model_name}')
+        result = hb_client.predict(
+            audio_files=[file(reference_url)],
+            file_m=pth_file_url,
+            pitch_alg="rmvpe+",
+            pitch_lvl=chunkPitch,
+            file_index=index_file_url,
+            index_inf=0.75,
+            r_m_f=3,
+            e_r=0.25,
+            c_b_p=0.5,
+            api_name="/run"
+        )
+        if "error" in result:
+            raise ValueError(result["error"])
+        print(f'finished inferring chunk {i} for {model_name}')
+        inferred_chunks.append(result[0])
+
+    # Combine the inferred chunks
+    combined = AudioSegment.empty()
+    for chunk in inferred_chunks:
+        combined += AudioSegment.from_wav(chunk)
+
+    with open(combined, 'rb') as combined_file:
         audio_file_blob = bucket.blob(f"remix-inferred-audios/{model_name}/isolated-vocal.wav")
-        audio_file_blob.upload_from_file(audio_file)
+        audio_file_blob.upload_from_file(combined_file)
 
     public_url = audio_file_blob.public_url
     return public_url
 
 
-def detect_pitch(audio_url):
-    response = requests.get(audio_url)
-    response.raise_for_status()  # Raise an exception for non-2xx status codes
-    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-        temp_file.write(response.content)
-        temp_file_path = temp_file.name
-
-    try:
-        y, sr = librosa.load(temp_file_path)
-        pitches, magnitudes = librosa.core.piptrack(y=y, sr=sr)
-        pitches = pitches[magnitudes > np.median(magnitudes)]
-        pitch = np.median(pitches)
-    finally:
-        os.remove(temp_file_path)
-
+def detect_pitch(audio_path):
+    y, sr = librosa.load(audio_path)
+    pitches, magnitudes = librosa.core.piptrack(y=y, sr=sr)
+    pitches = pitches[magnitudes > np.median(magnitudes)]
+    pitch = np.median(pitches)
     return pitch
