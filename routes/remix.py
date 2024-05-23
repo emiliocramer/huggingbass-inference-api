@@ -9,7 +9,7 @@ from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor
 from pydub import AudioSegment
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from db import models_collection
 from .inference import unzip_model_files
 from google.cloud import storage
@@ -30,17 +30,31 @@ MAX_WORKER_THREADS = 50
 executor = ThreadPoolExecutor(max_workers=MAX_WORKER_THREADS)
 
 
-@remix_blueprint.route('/combine-for-output', methods=['POST'])
-def process_combine_song_components(vocal_track_url, background_track_url):
-    sound1 = AudioSegment.from_file("/path/to/my_sound.wav")
-    sound2 = AudioSegment.from_file("/path/to/another_sound.wav")
-
-    combined = sound1.overlay(sound2)
-
-    combined.export("/path/to/combined.wav", format='wav')
+# @remix_blueprint.route('/combine-for-output', methods=['POST'])
+# def process_combine_song_components(vocal_track_url, background_track_url):
+#     data = request.get_json()
+#     track_url = data.get('trackUrl')
+#     track_id = data.get('trackId')
+#
+#     if not track_url or not track_id:
+#         return jsonify({'error': 'Missing trackUrl or trackId'}), 400
+#
+#     sound1 = AudioSegment.from_file("/path/to/my_sound.wav")
+#     sound2 = AudioSegment.from_file("/path/to/another_sound.wav")
+#
+#     combined = sound1.overlay(sound2)
+#
+#     combined.export("/path/to/combined.wav", format='wav')
 
 @remix_blueprint.route('/split-for-remix', methods=['POST'])
-def process_split_and_upload_from_mp3(track_url, track_id):
+def process_split_and_upload_from_mp3():
+    data = request.get_json()
+    track_url = data.get('trackUrl')
+    track_id = data.get('trackId')
+
+    if not track_url or not track_id:
+        return jsonify({'error': 'Missing trackUrl or trackId'}), 400
+
     hb_client = Client("r3gm/Audio_separator")
     split_result = hb_client.predict(
         media_file=file(track_url),
@@ -64,7 +78,14 @@ def process_split_and_upload_from_mp3(track_url, track_id):
 
 
 @remix_blueprint.route('/remix', methods=['POST'])
-def remix_audio(model_id, reference_url):
+def remix_audio():
+    data = request.get_json()
+    model_id = data.get('modelId')
+    reference_url = data.get('referenceUrl')
+
+    if not model_id or not reference_url:
+        return jsonify({'error': 'Missing modelId or referenceUrl'}), 400
+
     model = models_collection.find_one({'_id': ObjectId(model_id)})
     if not model:
         return 'Model not found', 404
