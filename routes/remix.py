@@ -1,5 +1,6 @@
 import zipfile
 import requests
+import tempfile
 import librosa
 import os
 import json
@@ -150,9 +151,19 @@ def infer_audio(pth_file_url, index_file_url, reference_url, model_name):
     return public_url
 
 
-def detect_pitch(audio_path):
-    y, sr = librosa.load(audio_path)
-    pitches, magnitudes = librosa.core.piptrack(y=y, sr=sr)
-    pitches = pitches[magnitudes > np.median(magnitudes)]
-    pitch = np.median(pitches)
+def detect_pitch(audio_url):
+    response = requests.get(audio_url)
+    response.raise_for_status()  # Raise an exception for non-2xx status codes
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        temp_file.write(response.content)
+        temp_file_path = temp_file.name
+
+    try:
+        y, sr = librosa.load(temp_file_path)
+        pitches, magnitudes = librosa.core.piptrack(y=y, sr=sr)
+        pitches = pitches[magnitudes > np.median(magnitudes)]
+        pitch = np.median(pitches)
+    finally:
+        os.remove(temp_file_path)
+
     return pitch
