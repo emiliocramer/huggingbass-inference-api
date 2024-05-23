@@ -191,9 +191,14 @@ def infer_audio(pth_file_url, index_file_url, reference_url, model_name, song_id
     # Combine the inferred chunks
     combined = AudioSegment.empty()
     for chunk in inferred_chunks:
-        combined += AudioSegment.from_wav(chunk)
+        combined += AudioSegment.from_file(chunk, format="wav")
 
-    with open(combined, 'rb') as combined_file:
+    # Define the path for the combined audio file
+    combined_file_path = f"/tmp/{model_name}/combined.wav"
+    combined.export(combined_file_path, format="wav")
+
+    # Upload the combined file
+    with open(combined_file_path, 'rb') as combined_file:
         audio_file_blob = bucket.blob(f"remix-inferred-audios/{model_name}/isolated-vocal.wav")
         audio_file_blob.upload_from_file(combined_file)
 
