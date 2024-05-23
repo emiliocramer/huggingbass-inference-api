@@ -18,7 +18,7 @@ from google.cloud import storage
 from bson.objectid import ObjectId
 from gradio_client import Client, file
 
-min_silence_len = 500
+min_silence_len = 100
 silence_thresh = -25
 
 
