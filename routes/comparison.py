@@ -34,6 +34,13 @@ def get_comparison_score():
     return jsonify({'message': "Comparison successfully underway. Please wait for completion."}), 200
 
 
+def calculate_snr(reference_audio, inferred_audio):
+    signal_power = np.mean(reference_audio ** 2)
+    noise_power = np.mean((reference_audio - inferred_audio) ** 2)
+    snr = 10 * np.log10(signal_power / noise_power)
+    return snr
+
+
 def process_comparison(inferred_audio_urls, reference_audio_url, model_id):
     # Load the reference audio
     print("loading reference audio")
@@ -41,6 +48,7 @@ def process_comparison(inferred_audio_urls, reference_audio_url, model_id):
     reference_audio, _ = librosa.load(io.BytesIO(response.content), sr=22050)
 
     similarity_scores = []
+    snr_scores = []
     for inferred_audio_url in inferred_audio_urls:
         # Load the inferred audio
         print("loading inferred audio")
@@ -70,9 +78,24 @@ def process_comparison(inferred_audio_urls, reference_audio_url, model_id):
         )
         similarity_scores.append(similarity_score)
 
-    print(similarity_scores)
-    print(max(similarity_scores))
+        # Compute SNR
+        snr = calculate_snr(reference_audio, inferred_audio)
+        snr_scores.append(snr)
+
+    print("Similarity Scores:", similarity_scores)
+    print("SNR Scores:", snr_scores)
+    max_similarity_score = max(similarity_scores)
+    max_snr_score = max(snr_scores)
+    
+    print("Max Similarity Score:", max_similarity_score)
+    print("Max SNR Score:", max_snr_score)
+
+    weighted_average_score = 0.5 * max_similarity_score * 100 + 0.5 * max_snr_score
+
     model = models_collection.find_one({'_id': ObjectId(model_id)})
-    model['qualityScore'] = max(similarity_scores) * 100
+    model['qualityScore'] = weighted_average_score
+    model['similarityScore'] = max_similarity_score * 100
+    model['snrScore'] = max_snr_score
     models_collection.update_one({'_id': ObjectId(model_id)}, {'$set': model})
-    return max(similarity_scores) * 100  # Return the maximum similarity score as a percentage
+    
+    return weighted_average_score, max_similarity_score * 100, max_snr_score
