@@ -7,10 +7,11 @@ import queue
 import numpy as np
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor
+from pydub import AudioSegment
 
 from flask import Blueprint, jsonify
 from db import models_collection
-from inference import unzip_model_files
+from .inference import unzip_model_files
 from google.cloud import storage
 from bson.objectid import ObjectId
 from gradio_client import Client, file
@@ -28,6 +29,15 @@ task_queue = queue.Queue()
 MAX_WORKER_THREADS = 50
 executor = ThreadPoolExecutor(max_workers=MAX_WORKER_THREADS)
 
+
+@remix_blueprint.route('/combine-for-output', methods=['POST'])
+def process_combine_song_components(vocal_track_url, background_track_url):
+    sound1 = AudioSegment.from_file("/path/to/my_sound.wav")
+    sound2 = AudioSegment.from_file("/path/to/another_sound.wav")
+
+    combined = sound1.overlay(sound2)
+
+    combined.export("/path/to/combined.wav", format='wav')
 
 @remix_blueprint.route('/split-for-remix', methods=['POST'])
 def process_split_and_upload_from_mp3(track_url, track_id):
