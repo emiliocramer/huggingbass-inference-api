@@ -67,7 +67,7 @@ def process_split_and_upload_from_mp3():
 
     background_split_result = hb_client.predict(
         media_file=file(track_url),
-        stem="vocal",
+        stem="background",
         main=False,
         dereverb=False,
         api_name="/sound_separate"
