@@ -137,9 +137,22 @@ def process_split_and_upload_from_mp3():
         background_file_blob = bucket.blob(f"remix-seperated-files/{track_id}/background.wav")
         background_file_blob.upload_from_file(source2_file)
 
+    # isolate primary
+    primary_vocal_split_result = hb_client.predict(
+        media_file=file(all_voice_file_blob.public_url),
+        stem="vocal",
+        main=False,
+        dereverb=False,
+        api_name="/sound_separate"
+    )
+    primary_voice_stem_path = primary_vocal_split_result[0]
+    with open(primary_voice_stem_path, 'rb') as source1_file:
+        primary_voice_file_blob = bucket.blob(f"remix-seperated-files/{track_id}/primary-vocal.wav")
+        primary_voice_file_blob.upload_from_file(source1_file)
+
     # deverb primary
     deverb_vocal_split_result = hb_client.predict(
-        media_file=file(all_voice_file_blob.public_url),
+        media_file=file(primary_voice_file_blob.public_url),
         stem="vocal",
         main=False,
         dereverb=True,
