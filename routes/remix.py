@@ -8,7 +8,6 @@ import queue
 import numpy as np
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor
-from pydub import AudioSegment
 
 from flask import Blueprint, jsonify, request
 from db import models_collection
@@ -56,6 +55,7 @@ def process_split_and_upload_from_mp3():
     if not track_url or not track_id:
         return jsonify({'error': 'Missing trackUrl or trackId'}), 400
 
+    # isolate vocals
     hb_client = Client("mealss/Audio_separator")
     vocal_split_result = hb_client.predict(
         media_file=file(track_url),
@@ -64,8 +64,12 @@ def process_split_and_upload_from_mp3():
         dereverb=False,
         api_name="/sound_separate"
     )
-    voice_stem_path = vocal_split_result[0]
+    all_voice_stem_path = vocal_split_result[0]
+    with open(all_voice_stem_path, 'rb') as source1_file:
+        all_voice_file_blob = bucket.blob(f"remix-seperated-files/{track_id}/all-vocals.wav")
+        all_voice_file_blob.upload_from_file(source1_file)
 
+    # isolate background
     background_split_result = hb_client.predict(
         media_file=file(track_url),
         stem="background",
@@ -74,16 +78,37 @@ def process_split_and_upload_from_mp3():
         api_name="/sound_separate"
     )
     background_stem_path = background_split_result[0]
-
-    with open(voice_stem_path, 'rb') as source1_file:
-        voice_file_blob = bucket.blob(f"remix-seperated-files/{track_id}/vocal.wav")
-        voice_file_blob.upload_from_file(source1_file)
-
     with open(background_stem_path, 'rb') as source2_file:
         background_file_blob = bucket.blob(f"remix-seperated-files/{track_id}/background.wav")
         background_file_blob.upload_from_file(source2_file)
 
-    return jsonify({'vocal': voice_file_blob.public_url, 'background': background_file_blob.public_url}), 200
+    # isolate primary
+    primary_vocal_split_result = hb_client.predict(
+        media_file=file(all_voice_file_blob.public_url),
+        stem="vocal",
+        main=False,
+        dereverb=False,
+        api_name="/sound_separate"
+    )
+    primary_voice_stem_path = primary_vocal_split_result[0]
+    with open(primary_voice_stem_path, 'rb') as source1_file:
+        primary_voice_file_blob = bucket.blob(f"remix-seperated-files/{track_id}/primary-vocal.wav")
+        primary_voice_file_blob.upload_from_file(source1_file)
+
+    # deverb primary
+    deverb_vocal_split_result = hb_client.predict(
+        media_file=file(primary_voice_file_blob.public_url),
+        stem="vocal",
+        main=False,
+        dereverb=True,
+        api_name="/sound_separate"
+    )
+    deverb_voice_stem_path = deverb_vocal_split_result[0]
+    with open(deverb_voice_stem_path, 'rb') as source1_file:
+        deverb_voice_file_blob = bucket.blob(f"remix-seperated-files/{track_id}/deverbed-vocal.wav")
+        deverb_voice_file_blob.upload_from_file(source1_file)
+
+    return jsonify({'vocal': deverb_voice_file_blob.public_url, 'background': background_file_blob.public_url}), 200
 
 
 @remix_blueprint.route('/remix', methods=['POST'])
@@ -130,7 +155,7 @@ def infer_audio(pth_file_url, index_file_url, reference_url, model_name):
     result = hb_client.predict(
         audio_files=[file(reference_url)],
         file_m=pth_file_url,
-        pitch_alg="rmvpe+",
+        pitch_alg="crepe",
         pitch_lvl=pitch,
         file_index=index_file_url,
         index_inf=0.75,
