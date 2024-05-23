@@ -98,4 +98,4 @@ def process_comparison(inferred_audio_urls, reference_audio_url, model_id):
     model['snrScore'] = max_snr_score
     models_collection.update_one({'_id': ObjectId(model_id)}, {'$set': model})
     
-    return weighted_average_score
+    return weighted_average_score, max_similarity_score * 100, max_snr_score
