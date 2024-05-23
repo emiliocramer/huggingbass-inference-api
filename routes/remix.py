@@ -19,7 +19,7 @@ from bson.objectid import ObjectId
 from gradio_client import Client, file
 
 min_silence_len = 100
-silence_thresh = -25
+silence_thresh = -22
 
 
 remix_blueprint = Blueprint('remix', __name__)
@@ -202,7 +202,7 @@ def infer_audio(pth_file_url, index_file_url, reference_url, model_name, song_id
         result = hb_client.predict(
             audio_files=[file(chunk_path)],
             file_m=pth_file_url,
-            pitch_alg="rmvpe+",
+            pitch_alg="crepe",
             pitch_lvl=chunkPitch,
             file_index=index_file_url,
             index_inf=0.75,
