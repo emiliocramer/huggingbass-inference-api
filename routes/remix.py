@@ -155,7 +155,7 @@ def infer_audio(pth_file_url, index_file_url, reference_url, model_name):
     result = hb_client.predict(
         audio_files=[file(reference_url)],
         file_m=pth_file_url,
-        pitch_alg="crepe",
+        pitch_alg="rmvpe+",
         pitch_lvl=pitch,
         file_index=index_file_url,
         index_inf=0.75,
