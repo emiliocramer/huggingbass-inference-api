@@ -73,15 +73,14 @@ def remix_audio(model_id, reference_url):
     print(f'pth_file_url: {pth_file_url}')
     print(f'index_file_url: {index_file_url}')
 
-    inferred_audios = infer_audio(pth_file_url, index_file_url, reference_url, model['name'])
-
-    model['inferredAudioUrls'] = inferred_audios
-    models_collection.update_one({'_id': ObjectId(model_id)}, {'$set': model})
+    inferred_audio_url = infer_audio(pth_file_url, index_file_url, reference_url, model['name'])
 
     # Clear variables
     pth_file_url = None
     index_file_url = None
     inferred_audios = None
+
+    return jsonify({'inferredAudioUrl': inferred_audio_url}), 200
 
 
 def infer_audio(pth_file_url, index_file_url, reference_url, model_name):
