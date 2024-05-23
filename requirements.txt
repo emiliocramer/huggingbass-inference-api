@@ -13,12 +13,13 @@ cryptography==42.0.7
 decorator==5.1.1
 dnspython==2.6.1
 exceptiongroup==1.2.1
+ffmpeg-python==0.2.0
 filelock==3.14.0
 firebase-admin==6.5.0
 Flask==3.0.3
 Flask-Cors==4.0.1
-ffmpeg-python
 fsspec==2024.3.1
+future==1.0.0
 google-api-core==2.19.0
 google-api-python-client==2.128.0
 google-auth==2.29.0
@@ -79,6 +80,6 @@ tqdm==4.66.4
 typing_extensions==4.11.0
 uritemplate==4.1.1
 urllib3==2.2.1
-websockets
+websockets==12.0
 Werkzeug==3.0.3
-yt-dlp
+yt-dlp==2024.4.9
