@@ -19,7 +19,7 @@ from bson.objectid import ObjectId
 from gradio_client import Client, file
 
 min_silence_len = 500
-silence_thresh = -16
+silence_thresh = -25
 
 
 remix_blueprint = Blueprint('remix', __name__)
