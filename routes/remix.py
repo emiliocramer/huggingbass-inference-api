@@ -42,6 +42,7 @@ def process_combine_song_components():
     background_track_url = data.get('backgroundTrackUrl')
     track_id = data.get('trackId')
     model_id = data.get('modelId')
+
     if not vocal_track_url or not track_id or not background_track_url or not model_id:
         return jsonify({'error': 'Missing vocalTrack or trackId or backgroundTrack or modelId'}), 400
 
@@ -59,7 +60,6 @@ def process_combine_song_components():
 
     sound1 = AudioSegment.from_wav(temp_file_vocal_path)
     sound2 = AudioSegment.from_wav(temp_file_background_path)
-
     combined = sound1.overlay(sound2)
 
     input_folder = f"/tmp/combined/{vocal_track_url}/{background_track_url}"
@@ -68,7 +68,7 @@ def process_combine_song_components():
     os.makedirs(input_folder, exist_ok=True)
     combined.export(combined_path, format='wav')
 
-    with open(combined, 'rb') as combined_file:
+    with open(combined_path, 'rb') as combined_file:
         combined_audio_blob = bucket.blob(f"remix-newly-combined/{track_id}+{model_id}/recombined.wav")
         combined_audio_blob.upload_from_file(combined_file)
 
