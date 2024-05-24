@@ -35,21 +35,44 @@ MAX_WORKER_THREADS = 50
 executor = ThreadPoolExecutor(max_workers=MAX_WORKER_THREADS)
 
 
-# @remix_blueprint.route('/combine-for-output', methods=['POST'])
-# def process_combine_song_components(vocal_track_url, background_track_url):
-#     data = request.get_json()
-#     track_url = data.get('trackUrl')
-#     track_id = data.get('trackId')
-#
-#     if not track_url or not track_id:
-#         return jsonify({'error': 'Missing trackUrl or trackId'}), 400
-#
-#     sound1 = AudioSegment.from_file("/path/to/my_sound.wav")
-#     sound2 = AudioSegment.from_file("/path/to/another_sound.wav")
-#
-#     combined = sound1.overlay(sound2)
-#
-#     combined.export("/path/to/combined.wav", format='wav')
+@remix_blueprint.route('/combine-for-output', methods=['POST'])
+def process_combine_song_components():
+    data = request.get_json()
+    vocal_track_url = data.get('vocalTrackUrl')
+    background_track_url = data.get('backgroundTrackUrl')
+    track_id = data.get('trackId')
+    model_id = data.get('modelId')
+    if not vocal_track_url or not track_id or not background_track_url or not model_id:
+        return jsonify({'error': 'Missing vocalTrack or trackId or backgroundTrack or modelId'}), 400
+
+    vocal_track_url_response = requests.get(vocal_track_url)
+    vocal_track_url_response.raise_for_status()
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file_vocal:
+        temp_file_vocal.write(vocal_track_url_response.content)
+        temp_file_vocal_path = temp_file_vocal.name
+
+    background_track_url_response = requests.get(background_track_url)
+    background_track_url_response.raise_for_status()
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file_background:
+        temp_file_background.write(background_track_url_response.content)
+        temp_file_background_path = temp_file_background.name
+
+    sound1 = AudioSegment.from_file(temp_file_vocal_path)
+    sound2 = AudioSegment.from_file(temp_file_background_path)
+
+    combined = sound1.overlay(sound2)
+
+    input_folder = f"/tmp/combined/{vocal_track_url}/{background_track_url}"
+    combined_filename = f"combined.wav"
+    combined_path = os.path.join(input_folder, combined_filename)
+    os.makedirs(input_folder, exist_ok=True)
+    combined.export(combined_path, format='wav')
+
+    with open(combined, 'rb') as combined_file:
+        combined_audio_blob = bucket.blob(f"remix-newly-combined/{track_id}+{model_id}/recombined.wav")
+        combined_audio_blob.upload_from_file(combined_file)
+
+    return jsonify({'combinedAudioUrl': combined_audio_blob.public_url}), 200
 
 
 @remix_blueprint.route('/remix', methods=['POST'])
