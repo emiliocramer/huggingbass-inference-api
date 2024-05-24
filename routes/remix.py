@@ -57,8 +57,8 @@ def process_combine_song_components():
         temp_file_background.write(background_track_url_response.content)
         temp_file_background_path = temp_file_background.name
 
-    sound1 = AudioSegment.from_file(temp_file_vocal_path)
-    sound2 = AudioSegment.from_file(temp_file_background_path)
+    sound1 = AudioSegment.from_wav(temp_file_vocal_path)
+    sound2 = AudioSegment.from_wav(temp_file_background_path)
 
     combined = sound1.overlay(sound2)
 
