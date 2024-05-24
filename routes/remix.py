@@ -202,7 +202,7 @@ def infer_audio(pth_file_url, index_file_url, reference_url, model_name, song_id
         result = hb_client.predict(
             audio_files=[file(chunk_path)],
             file_m=pth_file_url,
-            pitch_alg="crepe",
+            pitch_alg="rmvpe+",
             pitch_lvl=chunkPitch,
             file_index=index_file_url,
             index_inf=0.75,
