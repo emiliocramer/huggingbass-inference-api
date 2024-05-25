@@ -252,7 +252,6 @@ def infer_audio(pth_file_url, index_file_url, reference_url, model_name, song_id
     with open(combined_file_path, 'rb') as combined_file:
         audio_file_blob = bucket.blob(f"remix-inferred-audios/{model_name}/isolated-vocal.wav")
         audio_file_blob.upload_from_file(combined_file)
-
     public_url = audio_file_blob.public_url
     return public_url
 
