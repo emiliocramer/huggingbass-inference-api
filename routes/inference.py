@@ -165,9 +165,6 @@ def unzip_model_files(zip_ref, model_id):
                 if pth_file_url and index_file_url:
                     break
 
-    if not pth_file_url or not index_file_url:
-        return 'Model file not found', 404
-
     return pth_file_public_url, index_file_public_url
 
 

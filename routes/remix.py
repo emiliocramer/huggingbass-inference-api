@@ -110,7 +110,7 @@ def remix_audio():
             if pth_file_url and index_file_url:
                 break
     if not pth_file_url or not index_file_url:
-        return jsonify({'error': 'Unable to find required model files (.pth and .index)'}), 400
+        return jsonify({'error': 'Unable to find required model files (.pth and .index), try selecting a different model or uploading a new one'}), 400
 
     print("unzipped model files")
     print(f'pth_file_url: {pth_file_url}')
