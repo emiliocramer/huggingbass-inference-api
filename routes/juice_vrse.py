@@ -110,6 +110,7 @@ def infer_audio_juice_vrse(pth_file_url, index_file_url, reference_url):
         audio_file_blob = bucket.blob(f"juice-inferred-audios/{random_id}/isolated-vocal.wav")
         audio_file_blob.upload_from_file(combined_file)
     public_url = audio_file_blob.public_url
+    print(f'public url', public_url)
     return public_url
 
 
