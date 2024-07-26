@@ -11,7 +11,7 @@ from bson.objectid import ObjectId
 
 from routes.remix import detect_pitch
 
-min_silence_len = 500
+min_silence_len = 1000
 silence_thresh = -22
 
 key_json = os.environ.get('GOOGLE_CLOUD_KEY_JSON')
@@ -36,11 +36,12 @@ def juice_vrse():
         'https://storage.googleapis.com/huggingbass-bucket/model.index',
         vocal_url,
     )
+    combined_song_url = combine_song_components(inferred_audio_url, background_url)
 
     # Clear variables
     pth_file_url = None
     index_file_url = None
-    return jsonify({'inferredAudioUrl': inferred_audio_url}), 200
+    return jsonify({'inferredAudioUrl': combined_song_url}), 200
 
 
 def infer_audio_juice_vrse(pth_file_url, index_file_url, reference_url):
@@ -171,4 +172,37 @@ def split_for_juice(track_url):
         deverb_voice_file_blob.upload_from_file(source1_file)
 
     return deverb_voice_file_blob.public_url, background_file_blob.public_url
+
+
+def combine_song_components(vocal_url, background_url):
+    # get vocal file locally
+    vocal_track_url_response = requests.get(vocal_url)
+    vocal_track_url_response.raise_for_status()
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file_vocal:
+        temp_file_vocal.write(vocal_track_url_response.content)
+        temp_file_vocal_path = temp_file_vocal.name
+
+    # get background file locally
+    background_track_url_response = requests.get(background_url)
+    background_track_url_response.raise_for_status()
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file_background:
+        temp_file_background.write(background_track_url_response.content)
+        temp_file_background_path = temp_file_background.name
+
+    sound1 = AudioSegment.from_wav(temp_file_vocal_path)
+    sound2 = AudioSegment.from_wav(temp_file_background_path)
+    combined = sound1.overlay(sound2)
+
+    input_folder = f"/tmp/combined/{vocal_url}/{background_url}"
+    combined_filename = f"combined.wav"
+    combined_path = os.path.join(input_folder, combined_filename)
+    os.makedirs(input_folder, exist_ok=True)
+    combined.export(combined_path, format='wav')
+
+    random_id = ObjectId()
+    with open(combined_path, 'rb') as combined_file:
+        combined_audio_blob = bucket.blob(f"juice-newly-combined/{random_id}/recombined.wav")
+        combined_audio_blob.upload_from_file(combined_file)
+
+    return combined_audio_blob.public_url
 
