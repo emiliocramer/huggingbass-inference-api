@@ -144,14 +144,8 @@ def analyze_voice(audio_path):
         logger.info(f"Audio loaded. Sample rate: {sr}")
 
         logger.info("Performing pitch analysis")
-        pitches, magnitudes = librosa.piptrack(y=y, sr=sr)
-        pitches = pitches[pitches > 0]
-        pitch_range = {
-            'min': np.min(pitches),
-            'max': np.max(pitches),
-            'mean': np.mean(pitches)
-        }
-        logger.info(f"Pitch analysis complete. Range: {pitch_range}")
+        pitch_semitones = detect_pitch(audio_path)
+        logger.info(f"Pitch analysis complete. Pitch: {pitch_semitones} semitones from C4")
 
         logger.info("Performing formant analysis")
         S = librosa.stft(y)
@@ -173,7 +167,7 @@ def analyze_voice(audio_path):
 
         logger.info("Voice analysis complete")
         return {
-            'pitch_range': pitch_range,
+            'pitch': pitch_semitones,
             'formants': avg_formants.tolist()
         }
     except Exception as e:
@@ -200,25 +194,14 @@ def preprocess_audio(input_audio, reference_characteristics):
         input_characteristics = analyze_voice(input_audio)
 
         logger.info("Performing pitch shifting")
-        input_pitch = detect_pitch(input_audio)
-        reference_pitch = reference_characteristics['pitch_range']['mean']
+        input_pitch = input_characteristics['pitch']
+        reference_pitch = reference_characteristics['pitch']
         pitch_shift = reference_pitch - input_pitch
 
-        # Limit pitch shift to a reasonable range (e.g., -12 to 12 semitones)
-        max_shift = 12
-        pitch_shift = np.clip(pitch_shift, -max_shift, max_shift)
+        logger.info(f"Input pitch: {input_pitch}, Reference pitch: {reference_pitch}, Pitch shift: {pitch_shift}")
 
-        logger.info(f"Pitch shift (limited): {pitch_shift}")
-
-        # Apply pitch shift in smaller steps if it's large
-        max_step = 4
-        y_shifted = y
-        remaining_shift = pitch_shift
-        while abs(remaining_shift) > 0:
-            step = np.clip(remaining_shift, -max_step, max_step)
-            y_shifted = librosa.effects.pitch_shift(y_shifted, sr=sr, n_steps=step)
-            remaining_shift -= step
-            logger.info(f"Applied pitch shift step: {step}, Remaining: {remaining_shift}")
+        y_shifted = librosa.effects.pitch_shift(y, sr=sr, n_steps=pitch_shift)
+        logger.info(f"Pitch shifted by {pitch_shift} semitones")
 
         logger.info("Performing formant shifting")
         n_fft = 2048
@@ -263,7 +246,7 @@ def adaptive_voice_conversion(input_audio, reference_characteristics, conversion
 
     logger.info("Detecting pitch")
     detected_pitch = detect_pitch(preprocessed_path)
-    logger.info(f"Detected pitch: {detected_pitch}")
+    logger.info(f"Detected pitch: {detected_pitch} semitones from C4")
 
     logger.info("Applying voice conversion")
     result = conversion_model.predict(
