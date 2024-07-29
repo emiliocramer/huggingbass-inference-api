@@ -203,8 +203,22 @@ def preprocess_audio(input_audio, reference_characteristics):
         input_pitch = detect_pitch(input_audio)
         reference_pitch = reference_characteristics['pitch_range']['mean']
         pitch_shift = reference_pitch - input_pitch
-        y_shifted = librosa.effects.pitch_shift(y, sr=sr, n_steps=pitch_shift)
-        logger.info(f"Pitch shifted by {pitch_shift} steps")
+
+        # Limit pitch shift to a reasonable range (e.g., -12 to 12 semitones)
+        max_shift = 12
+        pitch_shift = np.clip(pitch_shift, -max_shift, max_shift)
+
+        logger.info(f"Pitch shift (limited): {pitch_shift}")
+
+        # Apply pitch shift in smaller steps if it's large
+        max_step = 4
+        y_shifted = y
+        remaining_shift = pitch_shift
+        while abs(remaining_shift) > 0:
+            step = np.clip(remaining_shift, -max_step, max_step)
+            y_shifted = librosa.effects.pitch_shift(y_shifted, sr=sr, n_steps=step)
+            remaining_shift -= step
+            logger.info(f"Applied pitch shift step: {step}, Remaining: {remaining_shift}")
 
         logger.info("Performing formant shifting")
         n_fft = 2048
@@ -213,10 +227,12 @@ def preprocess_audio(input_audio, reference_characteristics):
         ref_formants = reference_characteristics['formants']
 
         for i in range(min(len(input_formants), len(ref_formants))):
-            shift_ratio = ref_formants[i] / input_formants[i]
-            freq_bins = np.fft.fftfreq(n_fft, 1 / sr)
-            shift_mask = np.exp(1j * 2 * np.pi * freq_bins * (shift_ratio - 1) / sr)
-            f *= shift_mask[:, np.newaxis]
+            if input_formants[i] != 0:  # Avoid division by zero
+                shift_ratio = ref_formants[i] / input_formants[i]
+                shift_ratio = np.clip(shift_ratio, 0.5, 2.0)  # Limit the formant shift ratio
+                freq_bins = np.fft.fftfreq(n_fft, 1 / sr)
+                shift_mask = np.exp(1j * 2 * np.pi * freq_bins * (shift_ratio - 1) / sr)
+                f *= shift_mask[:, np.newaxis]
         logger.info("Formant shifting complete")
 
         y_processed = librosa.istft(f)
