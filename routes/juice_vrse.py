@@ -11,6 +11,7 @@ from pydub.silence import split_on_silence
 from bson.objectid import ObjectId
 import librosa
 import traceback
+import soundfile as sf
 import numpy as np
 from scipy.signal import find_peaks
 
@@ -78,7 +79,7 @@ def split_for_juice(track_url):
             media_file=file(track_url),
             stem="vocal",
             main=False,
-            dereverb=False,
+            dereverb=True,
             api_name="/sound_separate"
         )
         all_voice_stem_path = vocal_split_result[0]
@@ -107,25 +108,8 @@ def split_for_juice(track_url):
             background_file_blob.upload_from_file(source2_file)
         logger.info(f"Background uploaded. Blob path: {background_file_blob.name}")
 
-        logger.info("Applying deverb to vocals")
-        deverb_vocal_split_result = hb_client.predict(
-            media_file=file(all_voice_file_blob.public_url),
-            stem="vocal",
-            main=False,
-            dereverb=True,
-            api_name="/sound_separate"
-        )
-        deverb_voice_stem_path = deverb_vocal_split_result[0]
-        logger.info(f"Deverb applied. Stem path: {deverb_voice_stem_path}")
-
-        logger.info("Uploading deverbed vocals to GCS")
-        with open(deverb_voice_stem_path, 'rb') as source1_file:
-            deverb_voice_file_blob = bucket.blob(f"juice-seperated-files/{random_id}/deverbed-vocal.wav")
-            deverb_voice_file_blob.upload_from_file(source1_file)
-        logger.info(f"Deverbed vocals uploaded. Blob path: {deverb_voice_file_blob.name}")
-
         logger.info("Audio splitting process complete")
-        return deverb_voice_file_blob.public_url, background_file_blob.public_url
+        return all_voice_file_blob.public_url, background_file_blob.public_url
 
     except Exception as e:
         logger.error(f"Error in split_for_juice: {str(e)}")
@@ -240,7 +224,7 @@ def adaptive_voice_conversion(input_audio, reference_characteristics, conversion
 
     logger.info("Saving preprocessed audio to temporary file")
     with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
-        librosa.output.write_wav(temp_file.name, y_preprocessed, sr)
+        sf.write(temp_file.name, y_preprocessed, sr)
         preprocessed_path = temp_file.name
     logger.info(f"Preprocessed audio saved to: {preprocessed_path}")
 
