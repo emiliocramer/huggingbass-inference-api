@@ -64,7 +64,6 @@ def juice_vrse():
         return jsonify({'error': 'An error occurred during processing'}), 500
 
 
-
 def split_for_juice(track_url):
     logger.info(f"Starting audio splitting process for track: {track_url}")
     random_id = ObjectId()
@@ -162,9 +161,15 @@ def analyze_voice(audio_path):
         for col in D.T:
             peaks, _ = find_peaks(col, height=0, distance=100)
             formant_freqs = frequencies[peaks][:3]
-            formants.append(formant_freqs)
-        avg_formants = np.mean(formants, axis=0)
-        logger.info(f"Formant analysis complete. Average formants: {avg_formants}")
+            if len(formant_freqs) == 3:  # Only append if we found exactly 3 formants
+                formants.append(formant_freqs)
+
+        if formants:
+            avg_formants = np.mean(formants, axis=0)
+            logger.info(f"Formant analysis complete. Average formants: {avg_formants}")
+        else:
+            avg_formants = np.array([0, 0, 0])
+            logger.warning("No valid formants found. Using default values.")
 
         logger.info("Voice analysis complete")
         return {
@@ -195,7 +200,9 @@ def preprocess_audio(input_audio, reference_characteristics):
         input_characteristics = analyze_voice(input_audio)
 
         logger.info("Performing pitch shifting")
-        pitch_shift = reference_characteristics['pitch_range']['mean'] - input_characteristics['pitch_range']['mean']
+        input_pitch = detect_pitch(input_audio)
+        reference_pitch = reference_characteristics['pitch_range']['mean']
+        pitch_shift = reference_pitch - input_pitch
         y_shifted = librosa.effects.pitch_shift(y, sr=sr, n_steps=pitch_shift)
         logger.info(f"Pitch shifted by {pitch_shift} steps")
 
@@ -238,11 +245,15 @@ def adaptive_voice_conversion(input_audio, reference_characteristics, conversion
         preprocessed_path = temp_file.name
     logger.info(f"Preprocessed audio saved to: {preprocessed_path}")
 
+    logger.info("Detecting pitch")
+    detected_pitch = detect_pitch(preprocessed_path)
+    logger.info(f"Detected pitch: {detected_pitch}")
+
     logger.info("Applying voice conversion")
     result = conversion_model.predict(
         audio_files=[file(preprocessed_path)],
         pitch_alg="rmvpe+",
-        pitch_lvl=float(detect_pitch(preprocessed_path)),
+        pitch_lvl=float(detected_pitch),
         file_m=pth_file_url,
         file_index=index_file_url,
         index_inf=0.75,
