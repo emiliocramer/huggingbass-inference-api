@@ -10,6 +10,7 @@ from pydub import AudioSegment
 from pydub.silence import split_on_silence
 from bson.objectid import ObjectId
 import librosa
+import traceback
 import numpy as np
 from scipy.signal import find_peaks
 
@@ -29,32 +30,39 @@ bucket = client.bucket(bucket_name)
 
 juice_blueprint = Blueprint('juice', __name__)
 
-
 @juice_blueprint.route('/juice-vrse', methods=['POST'])
 def juice_vrse():
     logger.info("Received POST request to /juice-vrse")
+    logger.info(f"Request headers: {request.headers}")
     data = request.get_json()
+    logger.info(f"Request payload: {data}")
     suno_persistant_link = data.get('sunoLink')
     logger.info(f"Processing Suno persistent link: {suno_persistant_link}")
 
-    logger.info("Splitting audio into vocal and background")
-    vocal_url, background_url = split_for_juice(suno_persistant_link)
-    logger.info(f"Split complete. Vocal URL: {vocal_url}, Background URL: {background_url}")
+    try:
+        logger.info("Splitting audio into vocal and background")
+        vocal_url, background_url = split_for_juice(suno_persistant_link)
+        logger.info(f"Split complete. Vocal URL: {vocal_url}, Background URL: {background_url}")
 
-    logger.info("Starting voice conversion process")
-    inferred_audio_url = infer_audio_juice_vrse(
-        'https://storage.googleapis.com/huggingbass-bucket/model.pth',
-        'https://storage.googleapis.com/huggingbass-bucket/model.index',
-        vocal_url,
-    )
-    logger.info(f"Voice conversion complete. Inferred audio URL: {inferred_audio_url}")
+        logger.info("Starting voice conversion process")
+        inferred_audio_url = infer_audio_juice_vrse(
+            'https://storage.googleapis.com/huggingbass-bucket/model.pth',
+            'https://storage.googleapis.com/huggingbass-bucket/model.index',
+            vocal_url,
+        )
+        logger.info(f"Voice conversion complete. Inferred audio URL: {inferred_audio_url}")
 
-    logger.info("Combining converted voice with background")
-    combined_song_url = combine_song_components(inferred_audio_url, background_url)
-    logger.info(f"Combination complete. Final song URL: {combined_song_url}")
+        logger.info("Combining converted voice with background")
+        combined_song_url = combine_song_components(inferred_audio_url, background_url)
+        logger.info(f"Combination complete. Final song URL: {combined_song_url}")
 
-    logger.info("Returning response")
-    return jsonify({'inferredAudioUrl': combined_song_url}), 200
+        logger.info("Returning response")
+        return jsonify({'inferredAudioUrl': combined_song_url}), 200
+    except Exception as e:
+        logger.error(f"Error in juice_vrse: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': 'An error occurred during processing'}), 500
+
 
 
 def split_for_juice(track_url):
@@ -62,62 +70,68 @@ def split_for_juice(track_url):
     random_id = ObjectId()
     logger.info(f"Generated random ID for file storage: {random_id}")
 
-    hb_client = Client("mealss/Audio_separator")
-    logger.info("Initialized Audio separator client")
+    try:
+        hb_client = Client("mealss/Audio_separator")
+        logger.info("Initialized Audio separator client")
 
-    logger.info("Isolating vocals")
-    vocal_split_result = hb_client.predict(
-        media_file=file(track_url),
-        stem="vocal",
-        main=False,
-        dereverb=False,
-        api_name="/sound_separate"
-    )
-    all_voice_stem_path = vocal_split_result[0]
-    logger.info(f"Vocals isolated. Stem path: {all_voice_stem_path}")
+        logger.info("Isolating vocals")
+        vocal_split_result = hb_client.predict(
+            media_file=file(track_url),
+            stem="vocal",
+            main=False,
+            dereverb=False,
+            api_name="/sound_separate"
+        )
+        all_voice_stem_path = vocal_split_result[0]
+        logger.info(f"Vocals isolated. Stem path: {all_voice_stem_path}")
 
-    logger.info("Uploading isolated vocals to GCS")
-    with open(all_voice_stem_path, 'rb') as source1_file:
-        all_voice_file_blob = bucket.blob(f"juice-seperated-files/{random_id}/all-vocals.wav")
-        all_voice_file_blob.upload_from_file(source1_file)
-    logger.info(f"Vocals uploaded. Blob path: {all_voice_file_blob.name}")
+        logger.info("Uploading isolated vocals to GCS")
+        with open(all_voice_stem_path, 'rb') as source1_file:
+            all_voice_file_blob = bucket.blob(f"juice-seperated-files/{random_id}/all-vocals.wav")
+            all_voice_file_blob.upload_from_file(source1_file)
+        logger.info(f"Vocals uploaded. Blob path: {all_voice_file_blob.name}")
 
-    logger.info("Isolating background")
-    background_split_result = hb_client.predict(
-        media_file=file(track_url),
-        stem="background",
-        main=False,
-        dereverb=False,
-        api_name="/sound_separate"
-    )
-    background_stem_path = background_split_result[0]
-    logger.info(f"Background isolated. Stem path: {background_stem_path}")
+        logger.info("Isolating background")
+        background_split_result = hb_client.predict(
+            media_file=file(track_url),
+            stem="background",
+            main=False,
+            dereverb=False,
+            api_name="/sound_separate"
+        )
+        background_stem_path = background_split_result[0]
+        logger.info(f"Background isolated. Stem path: {background_stem_path}")
 
-    logger.info("Uploading isolated background to GCS")
-    with open(background_stem_path, 'rb') as source2_file:
-        background_file_blob = bucket.blob(f"juice-seperated-files/{random_id}/background.wav")
-        background_file_blob.upload_from_file(source2_file)
-    logger.info(f"Background uploaded. Blob path: {background_file_blob.name}")
+        logger.info("Uploading isolated background to GCS")
+        with open(background_stem_path, 'rb') as source2_file:
+            background_file_blob = bucket.blob(f"juice-seperated-files/{random_id}/background.wav")
+            background_file_blob.upload_from_file(source2_file)
+        logger.info(f"Background uploaded. Blob path: {background_file_blob.name}")
 
-    logger.info("Applying deverb to vocals")
-    deverb_vocal_split_result = hb_client.predict(
-        media_file=file(all_voice_file_blob.public_url),
-        stem="vocal",
-        main=False,
-        dereverb=True,
-        api_name="/sound_separate"
-    )
-    deverb_voice_stem_path = deverb_vocal_split_result[0]
-    logger.info(f"Deverb applied. Stem path: {deverb_voice_stem_path}")
+        logger.info("Applying deverb to vocals")
+        deverb_vocal_split_result = hb_client.predict(
+            media_file=file(all_voice_file_blob.public_url),
+            stem="vocal",
+            main=False,
+            dereverb=True,
+            api_name="/sound_separate"
+        )
+        deverb_voice_stem_path = deverb_vocal_split_result[0]
+        logger.info(f"Deverb applied. Stem path: {deverb_voice_stem_path}")
 
-    logger.info("Uploading deverbed vocals to GCS")
-    with open(deverb_voice_stem_path, 'rb') as source1_file:
-        deverb_voice_file_blob = bucket.blob(f"juice-seperated-files/{random_id}/deverbed-vocal.wav")
-        deverb_voice_file_blob.upload_from_file(source1_file)
-    logger.info(f"Deverbed vocals uploaded. Blob path: {deverb_voice_file_blob.name}")
+        logger.info("Uploading deverbed vocals to GCS")
+        with open(deverb_voice_stem_path, 'rb') as source1_file:
+            deverb_voice_file_blob = bucket.blob(f"juice-seperated-files/{random_id}/deverbed-vocal.wav")
+            deverb_voice_file_blob.upload_from_file(source1_file)
+        logger.info(f"Deverbed vocals uploaded. Blob path: {deverb_voice_file_blob.name}")
 
-    logger.info("Audio splitting process complete")
-    return deverb_voice_file_blob.public_url, background_file_blob.public_url
+        logger.info("Audio splitting process complete")
+        return deverb_voice_file_blob.public_url, background_file_blob.public_url
+
+    except Exception as e:
+        logger.error(f"Error in split_for_juice: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
 
 
 def analyze_voice(audio_path):
@@ -186,7 +200,7 @@ def preprocess_audio(input_audio, reference_characteristics):
     return y_processed, sr
 
 
-def adaptive_voice_conversion(input_audio, reference_characteristics, conversion_model):
+def adaptive_voice_conversion(input_audio, reference_characteristics, conversion_model, pth_file_url, index_file_url):
     logger.info(f"Starting adaptive voice conversion for input: {input_audio}")
     y_preprocessed, sr = preprocess_audio(input_audio, reference_characteristics)
     logger.info("Audio preprocessing complete")
@@ -254,7 +268,7 @@ def infer_audio_juice_vrse(pth_file_url, index_file_url, reference_url):
         logger.info(f"Chunk saved to: {chunk_path}")
 
         logger.info("Applying adaptive voice conversion")
-        converted_chunk = adaptive_voice_conversion(chunk_path, reference_characteristics, hb_client)
+        converted_chunk = adaptive_voice_conversion(chunk_path, reference_characteristics, hb_client, pth_file_url, index_file_url)
         inferred_chunks.append(converted_chunk)
         logger.info(f"Chunk {i + 1} conversion complete")
 
