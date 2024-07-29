@@ -136,68 +136,95 @@ def split_for_juice(track_url):
 
 def analyze_voice(audio_path):
     logger.info(f"Starting voice analysis for audio: {audio_path}")
-    y, sr = librosa.load(audio_path)
-    logger.info(f"Audio loaded. Sample rate: {sr}")
 
-    logger.info("Performing pitch analysis")
-    pitches, magnitudes = librosa.piptrack(y=y, sr=sr)
-    pitches = pitches[pitches > 0]
-    pitch_range = {
-        'min': np.min(pitches),
-        'max': np.max(pitches),
-        'mean': np.mean(pitches)
-    }
-    logger.info(f"Pitch analysis complete. Range: {pitch_range}")
+    try:
+        if audio_path.startswith('http'):
+            audio_path = download_file(audio_path)
 
-    logger.info("Performing formant analysis")
-    S = librosa.stft(y)
-    D = librosa.amplitude_to_db(np.abs(S), ref=np.max)
-    frequencies = librosa.fft_frequencies(sr=sr)
-    formants = []
-    for col in D.T:
-        peaks, _ = find_peaks(col, height=0, distance=100)
-        formant_freqs = frequencies[peaks][:3]
-        formants.append(formant_freqs)
-    avg_formants = np.mean(formants, axis=0)
-    logger.info(f"Formant analysis complete. Average formants: {avg_formants}")
+        y, sr = librosa.load(audio_path)
+        logger.info(f"Audio loaded. Sample rate: {sr}")
 
-    logger.info("Voice analysis complete")
-    return {
-        'pitch_range': pitch_range,
-        'formants': avg_formants.tolist()
-    }
+        logger.info("Performing pitch analysis")
+        pitches, magnitudes = librosa.piptrack(y=y, sr=sr)
+        pitches = pitches[pitches > 0]
+        pitch_range = {
+            'min': np.min(pitches),
+            'max': np.max(pitches),
+            'mean': np.mean(pitches)
+        }
+        logger.info(f"Pitch analysis complete. Range: {pitch_range}")
+
+        logger.info("Performing formant analysis")
+        S = librosa.stft(y)
+        D = librosa.amplitude_to_db(np.abs(S), ref=np.max)
+        frequencies = librosa.fft_frequencies(sr=sr)
+        formants = []
+        for col in D.T:
+            peaks, _ = find_peaks(col, height=0, distance=100)
+            formant_freqs = frequencies[peaks][:3]
+            formants.append(formant_freqs)
+        avg_formants = np.mean(formants, axis=0)
+        logger.info(f"Formant analysis complete. Average formants: {avg_formants}")
+
+        logger.info("Voice analysis complete")
+        return {
+            'pitch_range': pitch_range,
+            'formants': avg_formants.tolist()
+        }
+    except Exception as e:
+        logger.error(f"Error in analyze_voice: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    finally:
+        if audio_path.startswith('http'):
+            os.remove(audio_path)
+            logger.info(f"Temporary file removed: {audio_path}")
 
 
 def preprocess_audio(input_audio, reference_characteristics):
     logger.info(f"Starting audio preprocessing for input: {input_audio}")
-    y, sr = librosa.load(input_audio)
-    logger.info(f"Audio loaded. Sample rate: {sr}")
 
-    logger.info("Analyzing input audio characteristics")
-    input_characteristics = analyze_voice(input_audio)
+    try:
+        if input_audio.startswith('http'):
+            input_audio = download_file(input_audio)
 
-    logger.info("Performing pitch shifting")
-    pitch_shift = reference_characteristics['pitch_range']['mean'] - input_characteristics['pitch_range']['mean']
-    y_shifted = librosa.effects.pitch_shift(y, sr=sr, n_steps=pitch_shift)
-    logger.info(f"Pitch shifted by {pitch_shift} steps")
+        y, sr = librosa.load(input_audio)
+        logger.info(f"Audio loaded. Sample rate: {sr}")
 
-    logger.info("Performing formant shifting")
-    n_fft = 2048
-    f = librosa.stft(y_shifted, n_fft=n_fft)
-    input_formants = input_characteristics['formants']
-    ref_formants = reference_characteristics['formants']
+        logger.info("Analyzing input audio characteristics")
+        input_characteristics = analyze_voice(input_audio)
 
-    for i in range(min(len(input_formants), len(ref_formants))):
-        shift_ratio = ref_formants[i] / input_formants[i]
-        freq_bins = np.fft.fftfreq(n_fft, 1 / sr)
-        shift_mask = np.exp(1j * 2 * np.pi * freq_bins * (shift_ratio - 1) / sr)
-        f *= shift_mask[:, np.newaxis]
-    logger.info("Formant shifting complete")
+        logger.info("Performing pitch shifting")
+        pitch_shift = reference_characteristics['pitch_range']['mean'] - input_characteristics['pitch_range']['mean']
+        y_shifted = librosa.effects.pitch_shift(y, sr=sr, n_steps=pitch_shift)
+        logger.info(f"Pitch shifted by {pitch_shift} steps")
 
-    y_processed = librosa.istft(f)
-    logger.info("Audio preprocessing complete")
+        logger.info("Performing formant shifting")
+        n_fft = 2048
+        f = librosa.stft(y_shifted, n_fft=n_fft)
+        input_formants = input_characteristics['formants']
+        ref_formants = reference_characteristics['formants']
 
-    return y_processed, sr
+        for i in range(min(len(input_formants), len(ref_formants))):
+            shift_ratio = ref_formants[i] / input_formants[i]
+            freq_bins = np.fft.fftfreq(n_fft, 1 / sr)
+            shift_mask = np.exp(1j * 2 * np.pi * freq_bins * (shift_ratio - 1) / sr)
+            f *= shift_mask[:, np.newaxis]
+        logger.info("Formant shifting complete")
+
+        y_processed = librosa.istft(f)
+        logger.info("Audio preprocessing complete")
+
+        return y_processed, sr
+
+    except Exception as e:
+        logger.error(f"Error in preprocess_audio: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    finally:
+        if input_audio.startswith('http'):
+            os.remove(input_audio)
+            logger.info(f"Temporary file removed: {input_audio}")
 
 
 def adaptive_voice_conversion(input_audio, reference_characteristics, conversion_model, pth_file_url, index_file_url):
@@ -336,3 +363,14 @@ def combine_song_components(vocal_url, background_url):
     logger.info(f"Combined audio uploaded. Blob path: {combined_audio_blob.name}")
 
     return combined_audio_blob.public_url
+
+
+def download_file(url):
+    logger.info(f"Downloading file from URL: {url}")
+    response = requests.get(url)
+    response.raise_for_status()
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_file:
+        temp_file.write(response.content)
+        temp_file_path = temp_file.name
+    logger.info(f"File downloaded to temporary path: {temp_file_path}")
+    return temp_file_path
